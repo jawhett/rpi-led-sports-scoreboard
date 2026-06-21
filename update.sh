@@ -26,10 +26,6 @@ if [ "$LOCAL" != "$REMOTE" ]; then
         echo "requirements.txt updated. Reinstalling dependencies..."
         /home/nba/rpi-led-sports-scoreboard/venv/bin/pip install -r requirements.txt
     fi
-    
-    # Restart the scoreboard service to apply changes
-    echo "Restarting scoreboard service..."
-    sudo systemctl restart sports-scoreboard.service
 else
     echo "Scoreboard is up to date."
 fi

@@ -1,0 +1,10 @@
+[Unit]
+Description=Timer to check for Sports Scoreboard updates from Git every 5 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+Unit=scoreboard-updater.service
+
+[Install]
+WantedBy=timers.target

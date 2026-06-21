@@ -1,0 +1,12 @@
+[Unit]
+Description=Auto-updates the Sports Scoreboard from Git
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=nba
+WorkingDirectory=/home/nba/rpi-led-sports-scoreboard
+ExecStart=/home/nba/rpi-led-sports-scoreboard/update.sh
+StandardOutput=journal
+StandardError=journal

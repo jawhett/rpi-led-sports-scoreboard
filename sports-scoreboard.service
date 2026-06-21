@@ -1,0 +1,19 @@
+[Unit]
+Description=Raspberry Pi Sports Scoreboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/home/nba/rpi-led-sports-scoreboard
+ExecStartPre=-/home/nba/rpi-led-sports-scoreboard/update.sh
+ExecStart=/home/nba/rpi-led-sports-scoreboard/venv/bin/python /home/nba/rpi-led-sports-scoreboard/main.py --led-cols=64 --led-chain=1 --led-rows=32
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sports-scoreboard
+
+[Install]
+WantedBy=multi-user.target
