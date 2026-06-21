@@ -86,6 +86,27 @@ def get_next_game(team):
         }
         return(next_game)
     
+    # Fallback: Find the last completed game
+    completed_games = [game for game in schedule_json if game['gameState'] in ('OFF', 'FINAL')]
+    if completed_games:
+        last_game = completed_games[-1] # The last completed game
+        is_home = last_game['homeTeam']['abbrev'] == team
+        fav_score = last_game['homeTeam'].get('score', 0) if is_home else last_game['awayTeam'].get('score', 0)
+        opp_score = last_game['awayTeam'].get('score', 0) if is_home else last_game['homeTeam'].get('score', 0)
+        is_win = fav_score > opp_score
+        
+        return {
+            'home_or_away': 'home' if is_home else 'away',
+            'opponent_abrv': last_game['awayTeam']['abbrev'] if is_home else last_game['homeTeam']['abbrev'],
+            'start_datetime_utc': dt.strptime(last_game['startTimeUTC'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=tz.utc),
+            'start_datetime_local': dt.strptime(last_game['startTimeUTC'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=tz.utc).astimezone(tz=None),
+            'is_today': False,
+            'has_started': True,
+            'is_completed': True,
+            'is_win': is_win,
+            'score_str': f"{fav_score}-{opp_score}"
+        }
+    
     # If no next game found, return None.
     return None
 

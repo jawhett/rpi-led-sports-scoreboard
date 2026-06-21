@@ -37,6 +37,24 @@ class GamesScene(Scene):
             'full':     ImageDraw.Draw(self.images['full'])
         }
 
+    def parse_clock_str(self, clock_str):
+        if not clock_str:
+            return None
+        parts = clock_str.split(':')
+        if len(parts) == 2:
+            try:
+                m = int(parts[0])
+                s = float(parts[1])
+                return int(m * 60 + s)
+            except ValueError:
+                return None
+        elif len(parts) == 1:
+            try:
+                return int(float(parts[0]))
+            except ValueError:
+                return None
+        return None
+
 
     def build_splash_image(self, num_games, date):
         """ Builds splash screen image.
@@ -264,7 +282,7 @@ class GamesScene(Scene):
         # Load, crop, and resize the away team logo.
         away_logo = Image.open(away_logo_path)
         away_logo = image_utils.crop_image(away_logo)
-        away_logo.thumbnail(self.images['left'].size)
+        away_logo.thumbnail((21, self.images['left'].height))
 
         # Determine placement and add logo to the left image.
         away_placement_in_image = (
@@ -279,7 +297,7 @@ class GamesScene(Scene):
         # Load, crop, and resize the home team logo.
         home_logo = Image.open(home_logo_path)
         home_logo = image_utils.crop_image(home_logo)
-        home_logo.thumbnail(self.images['right'].size)
+        home_logo.thumbnail((21, self.images['right'].height))
 
         # Determine placement and add logo to the right image.
         home_placement_in_image = (

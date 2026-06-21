@@ -16,8 +16,9 @@ class Scene():
             'sm_bold':  ImageFont.load('assets/fonts/Tamzen5x9b.pil'),
             'med':      ImageFont.load('assets/fonts/Tamzen6x12r.pil'),
             'med_bold': ImageFont.load('assets/fonts/Tamzen6x12b.pil'),
-            'lrg':      ImageFont.load('assets/fonts/Tamzen8x15r.pil'),
-            'lrg_bold': ImageFont.load('assets/fonts/Tamzen8x15b.pil'),
+            'lrg':      ImageFont.load('assets/fonts/Tamzen8x16r.pil'),
+            'lrg_bold': ImageFont.load('assets/fonts/Tamzen8x16b.pil'),
+            'giant_bold': ImageFont.load('assets/fonts/Tamzen10x20b.pil'),
         }
 
         # Colours.
@@ -28,7 +29,11 @@ class Scene():
             'grey_light':   (180, 180, 180),
             'red':          (255, 50, 50),
             'yellow':       (255, 209, 0),
-            'green':        (28, 122, 0)
+            'green':        (28, 122, 0),
+            'cyan':         (0, 192, 255),
+            'green_bright': (0, 255, 127),
+            'red_bright':   (255, 48, 48),
+            'yellow_bright':(255, 215, 0)
         }
 
     def create_faded_image(self, image, overlay_opacity):

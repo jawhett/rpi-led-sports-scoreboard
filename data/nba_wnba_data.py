@@ -4,30 +4,33 @@ from datetime import timezone as tz
 
 # Note API headers that will need to be used for stats and cdn endpoints.
 stats_headers = {
-    'host': 'stats.nba.com',
-    'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36',
+    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
     'accept': 'application/json, text/plain, */*',
-    'accept-language': 'en-US,en;q=0.5',
-    'accept-encoding': 'gzip, deflate, br',
-    'connection': 'keep-alive',
+    'accept-language': 'en-US,en;q=0.9',
     'referer': 'https://www.nba.com/',
-    'pragma': 'no-cache',
-    'cache-control': 'no-cache',
-    'sec-ch-ua': '"Not:A-Brand";v="99", "Google Chrome";v="145", "Chromium";v="145"',
+    'origin': 'https://www.nba.com',
+    'sec-ch-ua': '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
     'sec-ch-ua-mobile': '?0',
-    'sec-fetch-dest': 'empty'
+    'sec-ch-ua-platform': '"Windows"',
+    'sec-fetch-dest': 'empty',
+    'sec-fetch-mode': 'cors',
+    'sec-fetch-site': 'same-site',
 }
 
 cdn_headers = {
-    'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-    'accept-encoding': 'gzip, deflate, br',
+    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    'accept': 'application/json, text/plain, */*',
     'accept-language': 'en-US,en;q=0.9',
-    'cache-control': 'max-age=0',
-    'connection': 'keep-alive',
-    'host': 'cdn.nba.com',
     'referer': 'https://www.nba.com/',
-    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36',
+    'origin': 'https://www.nba.com',
+    'sec-ch-ua': '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+    'sec-ch-ua-mobile': '?0',
+    'sec-ch-ua-platform': '"Windows"',
+    'sec-fetch-dest': 'empty',
+    'sec-fetch-mode': 'cors',
+    'sec-fetch-site': 'same-site',
 }
+
 
 def get_games(date, league_abrv):
     """ Loads NBA/WNBA game data for the provided date.
@@ -81,6 +84,11 @@ def get_games(date, league_abrv):
                     'period_type': 'OT' if game['period'] > 4 else 'Std',
                     'period_time_remaining': game['gameClock'][2:4] + ':' + game['gameClock'][5:7] if game['gameClock'] != ':' else None, # API returns time remaining in PT##M##.##S format.
                     'is_halftime': True if game['gameClock'] == 'PT00M00.00S' and game['period'] == 2 else False, # No explicit halftime flag, so infer based on period and clock.
+                    # Timeouts and fouls
+                    'home_timeouts': game['homeTeam'].get('timeoutsRemaining', 0),
+                    'away_timeouts': game['awayTeam'].get('timeoutsRemaining', 0),
+                    'home_fouls': game['homeTeam'].get('fouls', 0),
+                    'away_fouls': game['awayTeam'].get('fouls', 0),
                     # Will set the remaining later, default to False and None for now.
                     'home_team_scored': False,
                     'away_team_scored': False,
@@ -141,6 +149,32 @@ def get_next_game(team, league_abrv):
 
                     return(next_game)
     
+    # Fallback: Find the last completed game of the season for this team
+    past_days_games = [day_games for day_games in schedule_json if dt.strptime(day_games['gameDate'], '%m/%d/%Y %H:%M:%S').date() < cur_date]
+    for day_game in reversed(past_days_games):
+        for game in reversed(day_game['games']):
+            if game['gameLabel'] != 'Preseason':
+                if game['homeTeam']['teamTricode'] == team or game['awayTeam']['teamTricode'] == team:
+                    home_score = game['homeTeam'].get('score', 0)
+                    away_score = game['awayTeam'].get('score', 0)
+                    
+                    is_home = game['homeTeam']['teamTricode'] == team
+                    fav_score = home_score if is_home else away_score
+                    opp_score = away_score if is_home else home_score
+                    is_win = fav_score > opp_score
+                    
+                    return {
+                        'home_or_away': 'home' if is_home else 'away',
+                        'opponent_abrv': game['awayTeam']['teamTricode'] if is_home else game['homeTeam']['teamTricode'],
+                        'start_datetime_utc': dt.strptime(game['gameDateTimeUTC'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=tz.utc),
+                        'start_datetime_local': dt.strptime(game['gameDateTimeUTC'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=tz.utc).astimezone(tz=None),
+                        'is_today': False,
+                        'has_started': True,
+                        'is_completed': True,
+                        'is_win': is_win,
+                        'score_str': f"{fav_score}-{opp_score}"
+                    }
+
     # If no next game found, return None.
     return None
 

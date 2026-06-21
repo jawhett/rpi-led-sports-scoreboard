@@ -41,51 +41,66 @@ class FavTeamNextGameScene(Scene):
         # First, add the team logo to the image.
         self.add_team_logo_to_image(team)
 
-        # Add 'Next' and a horizontal line.
-        self.draw['full'].text((36, 0), 'Next', font=self.FONTS['med_bold'], fill=self.COLOURS['white'])
-        self.draw['full'].line([(34, 10), (60, 10)], fill=self.COLOURS['white'])
+        # If the game is completed (fallback during off-season / no upcoming games).
+        if game.get('is_completed'):
+            # Add 'Last' and a horizontal line.
+            self.draw['full'].text((36, 0), 'Last', font=self.FONTS['med_bold'], fill=self.COLOURS['white'])
+            self.draw['full'].line([(34, 10), (60, 10)], fill=self.COLOURS['white'])
 
-        # If the next game is today.
-        if game['is_today']:
-            # If the game has started, display 'IPR'.
-            if game['has_started']:
-                self.draw['full'].text((38, 11), 'IPR', font=self.FONTS['med'], fill=self.COLOURS['white'])
-            
-            # Otherwise, add start time of today's game.
-            else:
-                time_str = game['start_datetime_local'].time().strftime('%I:%M')
-                if time_str[0] == "1": # If the first digit of the time is 1. When 10:00-19:59 left in per/qtr, or game start on or after 10pm.
-                    # Hour/minutes.
-                    self.draw['full'].text((35, 11), time_str[0], font=self.FONTS['med'], fill=self.COLOURS['white']) # Need to acount for horizonal padding.
-                    self.draw['full'].text((41, 11), time_str[1], font=self.FONTS['med'], fill=self.COLOURS['white'])
-                    # Colon.
-                    self.draw['full'].point((47, 15), fill=self.COLOURS['white'])
-                    self.draw['full'].point((47, 17), fill=self.COLOURS['white'])
-                    # Minutes/seconds.
-                    self.draw['full'].text((49, 11), time_str[3], font=self.FONTS['med'], fill=self.COLOURS['white'])
-                    self.draw['full'].text((55, 11), time_str[4], font=self.FONTS['med'], fill=self.COLOURS['white'])
+            # Add the score string (e.g. 104-99)
+            score_str = game['score_str']
+            w = len(score_str) * 5
+            x = 47 - w // 2
+            color = self.COLOURS['green_bright'] if game.get('is_win') else self.COLOURS['red_bright']
+            self.draw['full'].text((x, 11), score_str, font=self.FONTS['sm_bold'], fill=color)
 
-                else: # If the first digit of the time is 0. When 0:00-9:59 left in per/qtr, or game start before 10pm.
-                    # Hour/minutes.
-                    self.draw['full'].text((38, 11), time_str[1], font=self.FONTS['med'], fill=self.COLOURS['white'])
-                    # Colon.
-                    self.draw['full'].point((44, 15), fill=self.COLOURS['white'])
-                    self.draw['full'].point((44, 17), fill=self.COLOURS['white'])
-                    # Minutes/seconds.
-                    self.draw['full'].text((46, 11), time_str[3], font=self.FONTS['med'], fill=self.COLOURS['white'])
-                    self.draw['full'].text((52, 11), time_str[4], font=self.FONTS['med'], fill=self.COLOURS['white'])
-        
-        # If the game is not today add the game date to the image.
+        # If the game is today or scheduled in the future.
         else:
-            # Note the month (3 char) and day number.
-            month = game['start_datetime_local'].strftime('%b')
-            day = game['start_datetime_local'].strftime('%-d')
+            # Add 'Next' and a horizontal line.
+            self.draw['full'].text((36, 0), 'Next', font=self.FONTS['med_bold'], fill=self.COLOURS['white'])
+            self.draw['full'].line([(34, 10), (60, 10)], fill=self.COLOURS['white'])
 
-            # Determine horizontal location, and add the date.
-            month_col = 37 if len(day) == 1 else 35
-            self.draw['full'].text((month_col, 12), month, font=self.FONTS['sm'], fill=self.COLOURS['white'])
-            day_col = 53 if len(day) == 1 else 51
-            self.draw['full'].text((day_col, 12), day, font=self.FONTS['sm'], fill=self.COLOURS['white'])
+            # If the next game is today.
+            if game['is_today']:
+                # If the game has started, display 'IPR'.
+                if game['has_started']:
+                    self.draw['full'].text((38, 11), 'IPR', font=self.FONTS['med'], fill=self.COLOURS['white'])
+                
+                # Otherwise, add start time of today's game.
+                else:
+                    time_str = game['start_datetime_local'].time().strftime('%I:%M')
+                    if time_str[0] == "1": # If the first digit of the time is 1. When 10:00-19:59 left in per/qtr, or game start on or after 10pm.
+                        # Hour/minutes.
+                        self.draw['full'].text((35, 11), time_str[0], font=self.FONTS['med'], fill=self.COLOURS['white']) # Need to acount for horizonal padding.
+                        self.draw['full'].text((41, 11), time_str[1], font=self.FONTS['med'], fill=self.COLOURS['white'])
+                        # Colon.
+                        self.draw['full'].point((47, 15), fill=self.COLOURS['white'])
+                        self.draw['full'].point((47, 17), fill=self.COLOURS['white'])
+                        # Minutes/seconds.
+                        self.draw['full'].text((49, 11), time_str[3], font=self.FONTS['med'], fill=self.COLOURS['white'])
+                        self.draw['full'].text((55, 11), time_str[4], font=self.FONTS['med'], fill=self.COLOURS['white'])
+
+                    else: # If the first digit of the time is 0. When 0:00-9:59 left in per/qtr, or game start before 10pm.
+                        # Hour/minutes.
+                        self.draw['full'].text((38, 11), time_str[1], font=self.FONTS['med'], fill=self.COLOURS['white'])
+                        # Colon.
+                        self.draw['full'].point((44, 15), fill=self.COLOURS['white'])
+                        self.draw['full'].point((44, 17), fill=self.COLOURS['white'])
+                        # Minutes/seconds.
+                        self.draw['full'].text((46, 11), time_str[3], font=self.FONTS['med'], fill=self.COLOURS['white'])
+                        self.draw['full'].text((52, 11), time_str[4], font=self.FONTS['med'], fill=self.COLOURS['white'])
+            
+            # If the game is not today add the game date to the image.
+            else:
+                # Note the month (3 char) and day number.
+                month = game['start_datetime_local'].strftime('%b')
+                day = game['start_datetime_local'].strftime('%-d')
+
+                # Determine horizontal location, and add the date.
+                month_col = 37 if len(day) == 1 else 35
+                self.draw['full'].text((month_col, 12), month, font=self.FONTS['sm'], fill=self.COLOURS['white'])
+                day_col = 53 if len(day) == 1 else 51
+                self.draw['full'].text((day_col, 12), day, font=self.FONTS['sm'], fill=self.COLOURS['white'])
 
         # Add 'VS'/'@' and the opposing team name to the image based on the length of the opposing team abrv.
         # Note that spacing is adjusted (& potentially some characters removed) based on the length of the opponent team abrv to ensure it is visually balanced, hence no general rule.

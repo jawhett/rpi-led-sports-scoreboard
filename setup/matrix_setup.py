@@ -27,7 +27,7 @@ def determine_matrix_brightness():
         # Calculate brightness based on max_brightness and current time.
         max_brightness = brightness_config['max_brightness']
         brightness = math.ceil(max_brightness * hour_int / 12 if hour_int <= 12 else max_brightness * (24 - hour_int) / 12)
-        brightness = brightness if brightness >= 15 else 15
+        brightness = brightness if brightness >= 50 else 50
         return brightness
     
     # If unexpected brightness_mode, fallback to max brightness.
@@ -47,6 +47,7 @@ matrix_options.drop_privileges = False # Needed to ensure fonts and images load 
 hardware_config = data_utils.read_yaml('config.yaml')['hardware_config']
 matrix_options.gpio_slowdown = hardware_config['gpio_slowdown']
 matrix_options.hardware_mapping = hardware_config['hardware_mapping']
+matrix_options.led_rgb_sequence = hardware_config.get('led_rgb_sequence', 'RGB')
 
 # Determine brightness.
 matrix_options.brightness = determine_matrix_brightness()

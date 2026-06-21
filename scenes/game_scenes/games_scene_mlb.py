@@ -199,14 +199,14 @@ class MLBGamesScene(GamesScene):
 
         # If at the end of the inning, add an 'E'.
         elif game['inning_state'] == 'End':
-            self.draw['centre'].text((col_offset-1, -1), 'E', font=self.FONTS['med'], fill=self.COLOURS['white'])
+            self.draw['centre'].text((col_offset-1, -1), 'E', font=self.FONTS['sm'], fill=self.COLOURS['white'])
 
         # Middle of inning, horizontal line.
         elif game['inning_state'] == 'Middle':
             self.draw['centre'].line(((col_offset-2, 4), (col_offset+2, 4)), fill=self.COLOURS['white'])
         
         # Add inning number.
-        self.draw['centre'].text((col_offset+5, -1), str(game['inning_num']), font=self.FONTS['med'], fill=self.COLOURS['white'])
+        self.draw['centre'].text((col_offset+5, -1), str(game['inning_num']), font=self.FONTS['sm'], fill=self.COLOURS['white'])
 
 
     def add_final_playing_period_to_image(self, game):
@@ -219,7 +219,7 @@ class MLBGamesScene(GamesScene):
         # If the game ended in extra innings, add the final inning number to the image.
         if game['inning_num'] > 9:
             # We'll assume no games go longer than 99 innings... so only one layout needed.
-            self.draw['centre'].text((4, 8), str(game['inning_num']), font=self.FONTS['med'], fill=self.COLOURS['white'])
+            self.draw['centre'].text((4, 8), str(game['inning_num']), font=self.FONTS['sm'], fill=self.COLOURS['white'])
 
 
     def add_outs_to_image(self, game):
@@ -277,3 +277,28 @@ class MLBGamesScene(GamesScene):
         if game['runner_on_third']:
             self.draw['centre'].line(((9, 14), (9, 16)), fill=self.COLOURS['yellow'])
             self.draw['centre'].line(((8, 15), (10, 15)), fill=self.COLOURS['yellow'])
+
+
+    def build_game_complete_image(self, game):
+        """ Builds image for when the game is complete.
+        Include final score and if the game ended in OT, etc.
+
+        Args:
+            game (dict): Dictionary with all details of a specific game.
+        """
+
+        # First, add the team logos to the left and right images.
+        self.add_team_logos_to_image(game)
+
+        # Add 'Final' to the centre image.
+        self.draw['centre'].text((0, -1), 'F', font=self.FONTS['sm'], fill=self.COLOURS['white'])
+        self.draw['centre'].text((4, 1), 'i', font=self.FONTS['sm'], fill=self.COLOURS['white'])
+        self.draw['centre'].text((8, 1), 'n', font=self.FONTS['sm'], fill=self.COLOURS['white'])
+        self.draw['centre'].text((13, 1), 'a', font=self.FONTS['sm'], fill=self.COLOURS['white'])
+        self.draw['centre'].text((16, 1), 'l', font=self.FONTS['sm'], fill=self.COLOURS['white'])
+
+        # If game ended in OT, etc. add that to the centre image.
+        self.add_final_playing_period_to_image(game) # This exists in child classes.
+
+        # Add the current score to the centre image, noting if either team scored since previous data pull.
+        self.add_score_to_image(game, overriding_team=game['scoring_team'], colour_override=self.COLOURS['red'])

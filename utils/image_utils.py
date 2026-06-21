@@ -13,11 +13,15 @@ def crop_image(image):
 
     # Get the bounding box of the image. Aka, boundaries of what's non-transparent. Crop the image to the contents of the bounding box.
     bbox = image.getbbox()
-    image = image.crop(bbox)
+    if bbox:
+        image = image.crop(bbox)
     
     # Create a new image object for the output image. Paste the cropped image onto the new image.
-    cropped_image = Image.new('RGB', image.size) # Note that since we define this as RGB, there will be no transparency in the resulting image.
-    cropped_image.paste(image)
+    cropped_image = Image.new('RGB', image.size, (0, 0, 0)) # Note that since we define this as RGB, there will be no transparency in the resulting image. Default to black.
+    if image.mode in ('RGBA', 'LA') or (image.mode == 'P' and 'transparency' in image.info):
+        cropped_image.paste(image, (0, 0), image) # Paste using the image itself as the alpha mask
+    else:
+        cropped_image.paste(image)
 
     return cropped_image
 

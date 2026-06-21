@@ -1,6 +1,6 @@
 from .games_scene import GamesScene
 from setup.matrix_setup import matrix
-import data.nba_wnba_data
+import data.nfl_data
 from utils import data_utils, date_utils, image_utils
 from PIL import Image
 
@@ -123,21 +123,18 @@ def get_text_3x5_width(text):
     return len(text) * 4 - 1 if text else 0
 
 
-class NBAWNBAGamesScene(GamesScene):
-    """ Game scene for the NBA/WNBA. Contains functionality to pull data from NBA/WNBA API, parse, and build+display specific images based on the result.
+class NFLGamesScene(GamesScene):
+    """ Game scene for the NFL. Contains functionality to pull data from NFL API, parse, and build+display specific images based on the result.
     This class extends the general Scene and GameScene classes. An object of this class type is created when the scoreboard is started.
     """
 
-    def __init__(self, league_abrv):
-        """ Defines the league as NBA/WNBA. Used to identify the correct files when adding logos to images.
+    def __init__(self):
+        """ Defines the league as NFL. Used to identify the correct files when adding logos to images.
         First runs init from the generic GameScene class.
-
-        Args:
-            league_abrv (str): Abbreviation of the league for which to fetch game data (e.g., 'NBA', 'WNBA').
         """
         
         super().__init__()
-        self.LEAGUE = league_abrv
+        self.LEAGUE = 'NFL'
 
 
     def display_scene(self):
@@ -158,18 +155,18 @@ class NBAWNBAGamesScene(GamesScene):
             if (hasattr(self, 'data_previous_day') and self.data_previous_day['saved_date'] != dates_to_display[0]) or not hasattr(self, 'data_previous_day'):
                 self.data_previous_day = {
                     'saved_date': dates_to_display[0],
-                    'games': data.nba_wnba_data.get_games(dates_to_display[0], self.LEAGUE)
+                    'games': data.nfl_data.get_games(dates_to_display[0])
                 }
         
         # Get current day game data. Save this for future reference.
-        current_games = data.nba_wnba_data.get_games(dates_to_display[-1], self.LEAGUE)
+        current_games = data.nfl_data.get_games(dates_to_display[-1])
         
         # If no games today, look back up to 14 days for the most recent games (except when showing yesterday's rollover)
         if not current_games and not display_yesterday:
             from datetime import timedelta
             for days_back in range(1, 15):
                 check_date = dates_to_display[-1] - timedelta(days=days_back)
-                recent_games = data.nba_wnba_data.get_games(check_date, self.LEAGUE)
+                recent_games = data.nfl_data.get_games(check_date)
                 if recent_games:
                     current_games = recent_games
                     break
@@ -335,7 +332,7 @@ class NBAWNBAGamesScene(GamesScene):
                 away_logo = Image.open(away_logo_path)
                 away_logo = image_utils.crop_image(away_logo)
                 away_logo.thumbnail((12, 9))
-                x = 1  # Leave 1px padding from the outer edge (where ticks are drawn)
+                x = 1
                 y = (10 - away_logo.height) // 2
                 self.images['full'].paste(away_logo, (x, max(0, y)))
             except Exception as e:
@@ -348,7 +345,7 @@ class NBAWNBAGamesScene(GamesScene):
                 home_logo = Image.open(home_logo_path)
                 home_logo = image_utils.crop_image(home_logo)
                 home_logo.thumbnail((12, 9))
-                x = 63 - home_logo.width  # Leave 1px padding from outer edge
+                x = 63 - home_logo.width
                 y = (10 - home_logo.height) // 2
                 self.images['full'].paste(home_logo, (x, max(0, y)))
             except Exception as e:
@@ -411,12 +408,6 @@ class NBAWNBAGamesScene(GamesScene):
             for i in range(7):
                 color = self.COLOURS['yellow_bright'] if i < game.get('home_timeouts', 0) else self.COLOURS['grey_dark']
                 self.draw['full'].point((50 + i * 2, 11), fill=color)
-            
-            # NBA Bonus indicators next to timeouts on row 11
-            if game.get('away_fouls', 0) >= 5:
-                self.draw['full'].rectangle([(15, 11), (17, 11)], fill=self.COLOURS['red_bright'])
-            if game.get('home_fouls', 0) >= 5:
-                self.draw['full'].rectangle([(46, 11), (48, 11)], fill=self.COLOURS['red_bright'])
 
         # 5. Draw Scores (row 11..30) - using FONTS['giant_bold'] (10x20)
         away_score = game['away_score']
@@ -621,19 +612,23 @@ class NBAWNBAGamesScene(GamesScene):
     def fade_score_change(self, game, clock_seconds=None, rotation_mode=0):
         """ Fades score from red to white after a score change and shows dynamic alerts.
         """
-        # Determine specific alert play text (e.g. PHX 3-POINTER!)
+        # Determine specific alert play text (e.g. KC TOUCHDOWN!)
         alert_text = None
         scoring_team = game.get('scoring_team')
-        score_diff = game.get('score_difference', 2)
+        score_diff = game.get('score_difference', 6)
         
         if scoring_team in ['away', 'home']:
             team_abrv = game['away_abrv'] if scoring_team == 'away' else game['home_abrv']
-            if score_diff == 3:
-                alert_text = f"{team_abrv} 3-POINTER!"
+            if score_diff >= 6:
+                alert_text = f"{team_abrv} TOUCHDOWN!"
+            elif score_diff == 3:
+                alert_text = f"{team_abrv} FIELD GOAL!"
+            elif score_diff == 2:
+                alert_text = f"{team_abrv} SAFETY!"
             elif score_diff == 1:
-                alert_text = f"{team_abrv} FREE THROW!"
+                alert_text = f"{team_abrv} EXTRA POINT!"
             else:
-                alert_text = f"{team_abrv} BASKET!"
+                alert_text = f"{team_abrv} SCORE!"
         elif scoring_team == 'both':
             alert_text = "SCORE CHANGE!"
 
