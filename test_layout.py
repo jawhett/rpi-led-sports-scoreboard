@@ -208,9 +208,9 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0):
             clock_str = game['period_time_remaining']
         
         status_text = f"{game['period_str']} {clock_str}"
-        w = len(status_text) * 5
+        w = get_text_3x5_width(status_text)
         x = 32 - w // 2
-        draw.text((x, 1), status_text, font=FONTS['sm'], fill=COLOURS['yellow'])
+        draw_text_3x5(draw, x, 1, status_text, COLOURS['yellow'])
 
         # Draw clean possession indicator dots right next to status channel
         if league == 'NFL' and game.get('possession'):
@@ -223,9 +223,9 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0):
     elif status_code == 3:  # Completed
         ot_str = game.get('ot_str', '')
         status_text = f"FINAL/{ot_str}" if ot_str else "FINAL"
-        w = len(status_text) * 5
+        w = get_text_3x5_width(status_text)
         x = 32 - w // 2
-        draw.text((x, 1), status_text, font=FONTS['sm'], fill=COLOURS['red_bright'])
+        draw_text_3x5(draw, x, 1, status_text, COLOURS['red_bright'])
 
     # 3. Draw Timeouts/Bonus Indicators (row 11) - placed cleanly under the logos
     if status_code != 1:  # Not for Scheduled games
@@ -233,26 +233,26 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0):
             # 3 timeout dots for NFL
             for i in range(3):
                 color = COLOURS['yellow_bright'] if i < game.get('away_timeouts', 0) else COLOURS['grey_dark']
-                draw.point((1 + i * 3, 11), fill=color)
-                draw.point((2 + i * 3, 11), fill=color)
+                draw.point((1 + i * 3, 10), fill=color)
+                draw.point((2 + i * 3, 10), fill=color)
             for i in range(3):
                 color = COLOURS['yellow_bright'] if i < game.get('home_timeouts', 0) else COLOURS['grey_dark']
-                draw.point((53 + i * 3, 11), fill=color)
-                draw.point((54 + i * 3, 11), fill=color)
+                draw.point((53 + i * 3, 10), fill=color)
+                draw.point((54 + i * 3, 10), fill=color)
         else:  # NBA/WNBA
             # 7 timeout dots for NBA
             for i in range(7):
                 color = COLOURS['yellow_bright'] if i < game.get('away_timeouts', 0) else COLOURS['grey_dark']
-                draw.point((0 + i * 2, 11), fill=color)
+                draw.point((0 + i * 2, 10), fill=color)
             for i in range(7):
                 color = COLOURS['yellow_bright'] if i < game.get('home_timeouts', 0) else COLOURS['grey_dark']
-                draw.point((50 + i * 2, 11), fill=color)
+                draw.point((50 + i * 2, 10), fill=color)
             
             # NBA Bonus lights next to timeouts on row 11
             if game.get('away_fouls', 0) >= 5:
-                draw.rectangle([(15, 11), (17, 11)], fill=COLOURS['red_bright'])
+                draw.rectangle([(15, 10), (17, 10)], fill=COLOURS['red_bright'])
             if game.get('home_fouls', 0) >= 5:
-                draw.rectangle([(46, 11), (48, 11)], fill=COLOURS['red_bright'])
+                draw.rectangle([(46, 10), (48, 10)], fill=COLOURS['red_bright'])
 
     # 4. Draw Scores (row 11..30) - using FONTS['giant_bold'] (10x20)
     if status_code == 2 or status_code == 3:  # In Progress or Completed
@@ -262,9 +262,9 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0):
         if status_code == 3 and game['away_score'] < game['home_score']:
             away_color = COLOURS['grey_dark']
             
-        w = len(str(away_score)) * 10
+        w = len(str(away_score)) * 8
         x = 16 - w // 2
-        draw.text((x, 11), str(away_score), font=FONTS['giant_bold'], fill=away_color)
+        draw.text((x, 10), str(away_score), font=FONTS['lrg_bold'], fill=away_color)
 
         # Draw Home Score
         home_score = game['home_score']
@@ -272,9 +272,9 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0):
         if status_code == 3 and game['home_score'] < game['away_score']:
             home_color = COLOURS['grey_dark']
             
-        w = len(str(home_score)) * 10
+        w = len(str(home_score)) * 8
         x = 48 - w // 2
-        draw.text((x, 11), str(home_score), font=FONTS['giant_bold'], fill=home_color)
+        draw.text((x, 10), str(home_score), font=FONTS['lrg_bold'], fill=home_color)
 
     # 5. Horizontal bottom banner (row 27..31) for secondary info (leaves row 26 blank for padding)
     if status_code == 2:  # In Progress
