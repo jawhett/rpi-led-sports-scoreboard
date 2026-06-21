@@ -1,6 +1,8 @@
 from utils import data_utils
-from rgbmatrix import RGBMatrix, RGBMatrixOptions
-# from RGBMatrixEmulator import RGBMatrix, RGBMatrixOptions
+try:
+    from rgbmatrix import RGBMatrix, RGBMatrixOptions
+except ImportError:
+    from RGBMatrixEmulator import RGBMatrix, RGBMatrixOptions
 from datetime import datetime as dt
 import math
 

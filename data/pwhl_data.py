@@ -15,52 +15,56 @@ def get_games(date):
     Returns:
         list: List of dicts of game data. (Currently placeholder — implement API calls.)
     """
+    try:
     
-    # Create an empty list to hold the game dicts.
-    games = []
+        # Create an empty list to hold the game dicts.
+        games = []
 
-    # Call the PWHL game API for the date specified and store the JSON results. First determine the current season.
-    cur_season_id = get_season_id(include_playoffs=True)
-    url = f'https://lscluster.hockeytech.com/feed/index.php?client_code=pwhl&key={key}&feed=modulekit&view=scorebar&numberofdaysback=1&numberofdaysahead=1'
-    games_response = session.get(url=url)
-    games_json = games_response.json()['SiteKit']['Scorebar']
+        # Call the PWHL game API for the date specified and store the JSON results. First determine the current season.
+        cur_season_id = get_season_id(include_playoffs=True)
+        url = f'https://lscluster.hockeytech.com/feed/index.php?client_code=pwhl&key={key}&feed=modulekit&view=scorebar&numberofdaysback=1&numberofdaysahead=1'
+        games_response = session.get(url=url)
+        games_json = games_response.json()['SiteKit']['Scorebar']
 
-    # For each game, build a dict recording current game details.
-    if games_json: # If games today. # TODO: validate what's returned when no games during range.
-        for game in games_json:
-            if game['SeasonID'] != str(cur_season_id) or game['Date'] != date.strftime('%Y-%m-%d'):
-                continue    # Skip games not in current season or not on the requested date.
+        # For each game, build a dict recording current game details.
+        if games_json: # If games today. # TODO: validate what's returned when no games during range.
+            for game in games_json:
+                if game['SeasonID'] != str(cur_season_id) or game['Date'] != date.strftime('%Y-%m-%d'):
+                    continue    # Skip games not in current season or not on the requested date.
             
-            # Append the dict to the games list.
-            games.append({
-                'game_id': game['ID'],
-                'home_abrv': game['HomeCode'],
-                'away_abrv': game['VisitorCode'],
-                'home_score': int(game['HomeGoals']),
-                'away_score': int(game['VisitorGoals']),
-                'start_datetime_utc': dt.strptime(game['GameDateISO8601'], '%Y-%m-%dT%H:%M:%S%z').astimezone(tz=tz.utc),
-                'start_datetime_local': dt.strptime(game['GameDateISO8601'], '%Y-%m-%dT%H:%M:%S%z').astimezone(tz=None), # Convert UTC to local time.
-                'status': game['GameStatus'],
-                'has_started': True if game['GameStatus'] in ['2', '3', '4'] else False, # 2 = In Progress, 3 = Unofficial Final,  4 = Final
-                'period_num': int(game['Period']),
-                'period_type': game['PeriodNameShort'], # Looks like there's nothing that notes if actively in shootout. Just that the game ended in shootout via GameStatusStringLong.
-                'period_time_remaining': game['GameClock'],
-                'is_intermission': True if (
-                    game['Intermission'] == '1'
-                    or (game['GameClock'] == '00:00' and game['GameStatus'] not in ['3', '4']) # Doesn't seem like the API sets Intermission flag consistently, so also check if time is 0 and game not final.
-                ) else False,
-                # Will set the remaining later, default to False and None for now.
-                'home_team_scored': False,
-                'away_team_scored': False,
-                'scoring_team': None
-            })
+                # Append the dict to the games list.
+                games.append({
+                    'game_id': game['ID'],
+                    'home_abrv': game['HomeCode'],
+                    'away_abrv': game['VisitorCode'],
+                    'home_score': int(game['HomeGoals']),
+                    'away_score': int(game['VisitorGoals']),
+                    'start_datetime_utc': dt.strptime(game['GameDateISO8601'], '%Y-%m-%dT%H:%M:%S%z').astimezone(tz=tz.utc),
+                    'start_datetime_local': dt.strptime(game['GameDateISO8601'], '%Y-%m-%dT%H:%M:%S%z').astimezone(tz=None), # Convert UTC to local time.
+                    'status': game['GameStatus'],
+                    'has_started': True if game['GameStatus'] in ['2', '3', '4'] else False, # 2 = In Progress, 3 = Unofficial Final,  4 = Final
+                    'period_num': int(game['Period']),
+                    'period_type': game['PeriodNameShort'], # Looks like there's nothing that notes if actively in shootout. Just that the game ended in shootout via GameStatusStringLong.
+                    'period_time_remaining': game['GameClock'],
+                    'is_intermission': True if (
+                        game['Intermission'] == '1'
+                        or (game['GameClock'] == '00:00' and game['GameStatus'] not in ['3', '4']) # Doesn't seem like the API sets Intermission flag consistently, so also check if time is 0 and game not final.
+                    ) else False,
+                    # Will set the remaining later, default to False and None for now.
+                    'home_team_scored': False,
+                    'away_team_scored': False,
+                    'scoring_team': None
+                })
     
-    # Sort games by ID to ensure consistent order.
-    games = sorted(games, key=lambda x: x['game_id'])
+        # Sort games by ID to ensure consistent order.
+        games = sorted(games, key=lambda x: x['game_id'])
 
-    return games
+        return games
 
 
+    except Exception as e:
+        print(f'Error in get_games: {e}')
+        return []
 def get_next_game(team):
     """ Placeholder: Loads next game details for the supplied PWHL team.
 
@@ -108,37 +112,41 @@ def get_standings():
         dict: Dict containing all standings by each category.
     """
 
-    # Call the PWHL standings API and store the JSON results. First determine the current season.
-    cur_season_id = get_season_id(include_playoffs=False)
-    url = f'https://lscluster.hockeytech.com/feed/index.php?client_code=pwhl&key={key}&feed=modulekit&view=statviewtype&stat=conference&type=standings&season_id={cur_season_id}'
-    standings_response = session.get(url=url)
-    standings_json = standings_response.json()['SiteKit']['Statviewtype'][1:] # 0th element is metadata.
+    try:
+        # Call the PWHL standings API and store the JSON results. First determine the current season.
+        cur_season_id = get_season_id(include_playoffs=False)
+        url = f'https://lscluster.hockeytech.com/feed/index.php?client_code=pwhl&key={key}&feed=modulekit&view=statviewtype&stat=conference&type=standings&season_id={cur_season_id}'
+        standings_response = session.get(url=url)
+        standings_json = standings_response.json()['SiteKit']['Statviewtype'][1:] # 0th element is metadata.
 
-    # Set up structure of the returned dict.
-    standings = {
-        'retrieved_on': dt.now().astimezone(),
-        'league': {
-            'PWHL': { # Exists to match structure needed for other standing types.
-                'rank_method': 'Points',
-                'playoff_cutoff_hard': 4,
-                'team_standings': [] # Will be populated w/ the API results.
+        # Set up structure of the returned dict.
+        standings = {
+            'retrieved_on': dt.now().astimezone(),
+            'league': {
+                'PWHL': { # Exists to match structure needed for other standing types.
+                    'rank_method': 'Points',
+                    'playoff_cutoff_hard': 4,
+                    'team_standings': [] # Will be populated w/ the API results.
+                }
             }
         }
-    }
 
-    # Populate the team lists w/ dicts containing details of each team.
-    for team in standings_json:
-        # Overall league.
-        standings['league']['PWHL']['team_standings'].append({
-            'team_abrv': team['team_code'],
-            'rank': int(team['overall_rank']),
-            'points': int(team['points']),
-            'has_clinched': True if team['clinched_playoff_spot'] == '1' else False
-        })
+        # Populate the team lists w/ dicts containing details of each team.
+        for team in standings_json:
+            # Overall league.
+            standings['league']['PWHL']['team_standings'].append({
+                'team_abrv': team['team_code'],
+                'rank': int(team['overall_rank']),
+                'points': int(team['points']),
+                'has_clinched': True if team['clinched_playoff_spot'] == '1' else False
+            })
 
-    return standings
+        return standings
 
 
+    except Exception as e:
+        print(f'Error in get_standings: {e}')
+        return {}
 def get_season_id(include_playoffs):
     """ Determines the PWHL season ID.
 
