@@ -43,64 +43,68 @@ def get_games(date, league_abrv):
         list: List of dicts of game data.
     """
 
-    # Create an empty list to hold the game dicts.
-    games = []
+    try:
+        # Create an empty list to hold the game dicts.
+        games = []
 
-    # Determine the league ID needed for the API calls based on the league abbreviation provided.
-    league_id = determine_league_id(league_abrv)
+        # Determine the league ID needed for the API calls based on the league abbreviation provided.
+        league_id = determine_league_id(league_abrv)
 
-    # First, hit the todayScoreboard endpoint to see what date it is returning.
-    url = f'https://cdn.nba.com/static/json/liveData/scoreboard/todaysScoreboard_{league_id}.json'
-    games_response = session.get(url=url, headers=cdn_headers)
-    games_response_date = dt.strptime(games_response.json()['scoreboard']['gameDate'], '%Y-%m-%d').date()
+        # First, hit the todayScoreboard endpoint to see what date it is returning.
+        url = f'https://cdn.nba.com/static/json/liveData/scoreboard/todaysScoreboard_{league_id}.json'
+        games_response = session.get(url=url, headers=cdn_headers)
+        games_response_date = dt.strptime(games_response.json()['scoreboard']['gameDate'], '%Y-%m-%d').date()
 
-    # If the date returned by the live score endpoint matches the date requested, use these results.
-    if games_response_date == date:
-        games_json = games_response.json()['scoreboard']['games']
+        # If the date returned by the live score endpoint matches the date requested, use these results.
+        if games_response_date == date:
+            games_json = games_response.json()['scoreboard']['games']
 
-    # Otherwise, hit the scoreboardv3 endpoint w/ the date param.
-    else:
-        # Call the NBA/WNBA game API for the date specified and store the JSON results.
-        url = f'https://stats.nba.com/stats/scoreboardv3?LeagueID={league_id}'
-        games_response = session.get(url=f"{url}&GameDate={date.strftime(format='%Y-%m-%d')}", headers=stats_headers)
-        games_json = games_response.json()['scoreboard']['games']
+        # Otherwise, hit the scoreboardv3 endpoint w/ the date param.
+        else:
+            # Call the NBA/WNBA game API for the date specified and store the JSON results.
+            url = f'https://stats.nba.com/stats/scoreboardv3?LeagueID={league_id}'
+            games_response = session.get(url=f"{url}&GameDate={date.strftime(format='%Y-%m-%d')}", headers=stats_headers)
+            games_json = games_response.json()['scoreboard']['games']
 
-    # For each game, build a dict recording current game details.
-    if games_json: # If games today.
-        for game in games_json:
-            if 'All-Star' not in game['gameLabel'] and 'Preseason' not in game['gameLabel'] and 'Rising Stars' not in game['gameLabel']: # This should leave regular season and playoff games.
-                games.append({
-                    'game_id': game['gameId'],
-                    'home_abrv': game['homeTeam']['teamTricode'],
-                    'away_abrv': game['awayTeam']['teamTricode'],
-                    'home_score': game['homeTeam']['score'],
-                    'away_score': game['awayTeam']['score'],
-                    'start_datetime_utc': dt.strptime(game['gameTimeUTC'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=tz.utc),
-                    'start_datetime_local': dt.strptime(game['gameTimeUTC'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=tz.utc).astimezone(tz=None), # Convert UTC to local time.
-                    'status': game['gameStatusText'],
-                    'status_code': game['gameStatus'], # 1=Scheduled, 2=In Progress, 3=Final.
-                    'has_started': True if game['gameStatus'] > 1 else False,
-                    'period_num': game['period'],
-                    'period_type': 'OT' if game['period'] > 4 else 'Std',
-                    'period_time_remaining': game['gameClock'][2:4] + ':' + game['gameClock'][5:7] if game['gameClock'] != ':' else None, # API returns time remaining in PT##M##.##S format.
-                    'is_halftime': True if game['gameClock'] == 'PT00M00.00S' and game['period'] == 2 else False, # No explicit halftime flag, so infer based on period and clock.
-                    # Timeouts and fouls
-                    'home_timeouts': game['homeTeam'].get('timeoutsRemaining', 0),
-                    'away_timeouts': game['awayTeam'].get('timeoutsRemaining', 0),
-                    'home_fouls': game['homeTeam'].get('fouls', 0),
-                    'away_fouls': game['awayTeam'].get('fouls', 0),
-                    # Will set the remaining later, default to False and None for now.
-                    'home_team_scored': False,
-                    'away_team_scored': False,
-                    'scoring_team': None
-                })
+        # For each game, build a dict recording current game details.
+        if games_json: # If games today.
+            for game in games_json:
+                if 'All-Star' not in game['gameLabel'] and 'Preseason' not in game['gameLabel'] and 'Rising Stars' not in game['gameLabel']: # This should leave regular season and playoff games.
+                    games.append({
+                        'game_id': game['gameId'],
+                        'home_abrv': game['homeTeam']['teamTricode'],
+                        'away_abrv': game['awayTeam']['teamTricode'],
+                        'home_score': game['homeTeam']['score'],
+                        'away_score': game['awayTeam']['score'],
+                        'start_datetime_utc': dt.strptime(game['gameTimeUTC'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=tz.utc),
+                        'start_datetime_local': dt.strptime(game['gameTimeUTC'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=tz.utc).astimezone(tz=None), # Convert UTC to local time.
+                        'status': game['gameStatusText'],
+                        'status_code': game['gameStatus'], # 1=Scheduled, 2=In Progress, 3=Final.
+                        'has_started': True if game['gameStatus'] > 1 else False,
+                        'period_num': game['period'],
+                        'period_type': 'OT' if game['period'] > 4 else 'Std',
+                        'period_time_remaining': game['gameClock'][2:4] + ':' + game['gameClock'][5:7] if game['gameClock'] != ':' else None, # API returns time remaining in PT##M##.##S format.
+                        'is_halftime': True if game['gameClock'] == 'PT00M00.00S' and game['period'] == 2 else False, # No explicit halftime flag, so infer based on period and clock.
+                        # Timeouts and fouls
+                        'home_timeouts': game['homeTeam'].get('timeoutsRemaining', 0),
+                        'away_timeouts': game['awayTeam'].get('timeoutsRemaining', 0),
+                        'home_fouls': game['homeTeam'].get('fouls', 0),
+                        'away_fouls': game['awayTeam'].get('fouls', 0),
+                        # Will set the remaining later, default to False and None for now.
+                        'home_team_scored': False,
+                        'away_team_scored': False,
+                        'scoring_team': None
+                    })
 
-    # Sort games by game_id, ensuring that order remains consistent after games start/end.
-    games = sorted(games, key=lambda x: x['game_id'])
+        # Sort games by game_id, ensuring that order remains consistent after games start/end.
+        games = sorted(games, key=lambda x: x['game_id'])
 
-    return games
+        return games
 
 
+    except Exception as e:
+        print(f'Error in get_games: {e}')
+        return []
 def get_next_game(team, league_abrv):
     """ Loads next game details for the supplied NBA/WNBA team.
     If the team is currently playing, will return details of the current game.
@@ -189,97 +193,101 @@ def get_standings(league_abrv):
         dict: Dict containing all standings by each category.
     """
 
-    # Get the current NBA/WNBA season based on the current date and league ID from abbreviation provided.
-    season = determine_current_season(league_abrv)
-    league_id = determine_league_id(league_abrv)
+    try:
+        # Get the current NBA/WNBA season based on the current date and league ID from abbreviation provided.
+        season = determine_current_season(league_abrv)
+        league_id = determine_league_id(league_abrv)
     
-    # Call the NBA/WNBA standings API and store the JSON results.
-    url = f'https://stats.nba.com/stats/leaguestandingsv3?LeagueID={league_id}&SeasonType=Regular Season'
-    standings_response = session.get(url=f'{url}&Season={season}', headers=stats_headers)
-    standings_json_unprocessed = standings_response.json()['resultSets'][0]
+        # Call the NBA/WNBA standings API and store the JSON results.
+        url = f'https://stats.nba.com/stats/leaguestandingsv3?LeagueID={league_id}&SeasonType=Regular Season'
+        standings_response = session.get(url=f'{url}&Season={season}', headers=stats_headers)
+        standings_json_unprocessed = standings_response.json()['resultSets'][0]
 
-    # Process the returned JSON into a more usable format.
-    standings_json = []
-    for team in standings_json_unprocessed['rowSet']:
-        team_values = {}
-        for header, value in zip(standings_json_unprocessed['headers'], team):
-            team_values[header] = value
+        # Process the returned JSON into a more usable format.
+        standings_json = []
+        for team in standings_json_unprocessed['rowSet']:
+            team_values = {}
+            for header, value in zip(standings_json_unprocessed['headers'], team):
+                team_values[header] = value
         
-        # Add the team abbreviation to the dict based on the dict defined above.
-        team_values['teamTricode'] = determine_team_abbreviation(team_values['TeamID'], league_abrv)
-        standings_json.append(team_values)
+            # Add the team abbreviation to the dict based on the dict defined above.
+            team_values['teamTricode'] = determine_team_abbreviation(team_values['TeamID'], league_abrv)
+            standings_json.append(team_values)
 
-    # How the standings are structured depends on the league, so determine the structure based on the league and populate accordingly.
-    if league_abrv == 'NBA':
-        # Set up structure of the returned dict.
-        # Teams lists will be populated w/ the API results.
-        standings = {
-            'retrieved_on': dt.now().astimezone(),
-            'conference': {
-                conf: {
-                    'subdivision_abrv': conf_abrv,
-                    'rank_method': 'Win Percentage',
-                    'playoff_cutoff_hard': 10,
-                    'playoff_cutoff_soft': 6,
-                    'team_standings': []
-                } for conf, conf_abrv in [('East', 'EC'), ('West', 'WC')]
-            },
-            'division': {
-                div: {
-                    'subdivision_abrv': div_abrv,
-                    'rank_method': 'Win Percentage',
-                    'team_standings': []
-                } for div, div_abrv in [('Atlantic', 'Atl'), ('Central', 'Cen'), ('Southeast', 'SE'), ('Northwest', 'NW'), ('Pacific', 'Pac'), ('Southwest', 'SW')]
-            }
-        }
-
-        # Populate the team lists w/ dicts containing details of each team.
-        # API returns teams in overall standing order, so generally won't have to sort.
-        for team in standings_json:
-            # Conferences.
-            standings['conference'][team['Conference']]['team_standings'].append({
-                'team_abrv': team['teamTricode'],
-                'rank': team['PlayoffRank'],
-                'percent': f'{team["WinPCT"]:.3f}', # Make percent a string formatted to 3 decimal places. E.g., 0.625.
-                'has_clinched': True if team['ClinchedPostSeason'] == 1 else False
-            })
-
-            # Divisions.
-            standings['division'][team['Division']]['team_standings'].append({
-                'team_abrv': team['teamTricode'],
-                'rank': team['DivisionRank'],
-                'percent': f'{team["WinPCT"]:.3f}',
-                'has_clinched': True if team['ClinchedPostSeason'] == 1 else False
-            })
-    
-    elif league_abrv == 'WNBA':
-        # Set up structure of the returned dict.
-        # Teams lists will be populated w/ the API results.
-        standings = {
-            'retrieved_on': dt.now().astimezone(),
-            'league': {
-                'WNBA': { # Match structure needed for other standing types.
-                    'rank_method': 'Win Percentage',
-                    'playoff_cutoff_hard': 8,
-                    'team_standings': [] # Will be populated w/ the API results.
+        # How the standings are structured depends on the league, so determine the structure based on the league and populate accordingly.
+        if league_abrv == 'NBA':
+            # Set up structure of the returned dict.
+            # Teams lists will be populated w/ the API results.
+            standings = {
+                'retrieved_on': dt.now().astimezone(),
+                'conference': {
+                    conf: {
+                        'subdivision_abrv': conf_abrv,
+                        'rank_method': 'Win Percentage',
+                        'playoff_cutoff_hard': 10,
+                        'playoff_cutoff_soft': 6,
+                        'team_standings': []
+                    } for conf, conf_abrv in [('East', 'EC'), ('West', 'WC')]
+                },
+                'division': {
+                    div: {
+                        'subdivision_abrv': div_abrv,
+                        'rank_method': 'Win Percentage',
+                        'team_standings': []
+                    } for div, div_abrv in [('Atlantic', 'Atl'), ('Central', 'Cen'), ('Southeast', 'SE'), ('Northwest', 'NW'), ('Pacific', 'Pac'), ('Southwest', 'SW')]
                 }
             }
-        }
 
-        # Populate the team lists w/ dicts containing details of each team.
-        # API returns teams in overall standing order, so generally won't have to sort.
-        for team in standings_json:
-            # Overall.
-            standings['league']['WNBA']['team_standings'].append({
+            # Populate the team lists w/ dicts containing details of each team.
+            # API returns teams in overall standing order, so generally won't have to sort.
+            for team in standings_json:
+                # Conferences.
+                standings['conference'][team['Conference']]['team_standings'].append({
                     'team_abrv': team['teamTricode'],
                     'rank': team['PlayoffRank'],
                     'percent': f'{team["WinPCT"]:.3f}', # Make percent a string formatted to 3 decimal places. E.g., 0.625.
-                    'has_clinched': True if team['ClinchIndicator'] == ' - x' else False # ClinchedPostSeason isn't populated in WNBA API.
-            })
+                    'has_clinched': True if team['ClinchedPostSeason'] == 1 else False
+                })
 
-    return standings
+                # Divisions.
+                standings['division'][team['Division']]['team_standings'].append({
+                    'team_abrv': team['teamTricode'],
+                    'rank': team['DivisionRank'],
+                    'percent': f'{team["WinPCT"]:.3f}',
+                    'has_clinched': True if team['ClinchedPostSeason'] == 1 else False
+                })
+    
+        elif league_abrv == 'WNBA':
+            # Set up structure of the returned dict.
+            # Teams lists will be populated w/ the API results.
+            standings = {
+                'retrieved_on': dt.now().astimezone(),
+                'league': {
+                    'WNBA': { # Match structure needed for other standing types.
+                        'rank_method': 'Win Percentage',
+                        'playoff_cutoff_hard': 8,
+                        'team_standings': [] # Will be populated w/ the API results.
+                    }
+                }
+            }
+
+            # Populate the team lists w/ dicts containing details of each team.
+            # API returns teams in overall standing order, so generally won't have to sort.
+            for team in standings_json:
+                # Overall.
+                standings['league']['WNBA']['team_standings'].append({
+                        'team_abrv': team['teamTricode'],
+                        'rank': team['PlayoffRank'],
+                        'percent': f'{team["WinPCT"]:.3f}', # Make percent a string formatted to 3 decimal places. E.g., 0.625.
+                        'has_clinched': True if team['ClinchIndicator'] == ' - x' else False # ClinchedPostSeason isn't populated in WNBA API.
+                })
+
+        return standings
 
 
+    except Exception as e:
+        print(f'Error in get_standings: {e}')
+        return {}
 def determine_league_id(league_abrv):
     """ Gets league ID based on league abbreviation.
 

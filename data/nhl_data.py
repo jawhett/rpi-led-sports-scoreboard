@@ -12,44 +12,48 @@ def get_games(date):
     Returns:
         list: List of dicts of game data.
     """
+    try:
     
-    # Create an empty list to hold the game dicts.
-    games = []
+        # Create an empty list to hold the game dicts.
+        games = []
 
-    # Call the NHL game API for the date specified and store the JSON results.
-    url = 'https://api-web.nhle.com/v1/score/'
-    games_response = session.get(url=f"{url}{date.strftime(format='%Y-%m-%d')}")
-    games_json = games_response.json()['games']
+        # Call the NHL game API for the date specified and store the JSON results.
+        url = 'https://api-web.nhle.com/v1/score/'
+        games_response = session.get(url=f"{url}{date.strftime(format='%Y-%m-%d')}")
+        games_json = games_response.json()['games']
 
-    # For each game, build a dict recording current game details.
-    if games_json: # If games today.
-        for game in games_json:
-            # Append the dict to the games list. We only want to get regular season (gameType = 2) and playoff (3) games.
-            # Note that 19 and 20 may need to be included. These were used for the 4 Nations Face-Off round robin & finals and will be evaluated again in the future.
-            if game['gameType'] in [2, 3]:
-                games.append({
-                    'game_id': game['id'],
-                    'home_abrv': game['homeTeam']['abbrev'],
-                    'away_abrv': game['awayTeam']['abbrev'],
-                    'home_score': game['homeTeam'].get('score'), # Doesn't exist until game starts.
-                    'away_score': game['awayTeam'].get('score'),
-                    'start_datetime_utc': dt.strptime(game['startTimeUTC'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=tz.utc),
-                    'start_datetime_local': dt.strptime(game['startTimeUTC'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=tz.utc).astimezone(tz=None), # Convert UTC to local time.
-                    'status': game['gameState'],
-                    'has_started': True if game['gameState'] in ['LIVE', 'CRIT', 'OFF', 'FINAL'] else False,
-                    'period_num': game.get('period'), # Doesn't until game starts.
-                    'period_type': game.get('periodDescriptor', {}).get('periodType'), # periodDescriptor doesn't exist until game starts.
-                    'period_time_remaining': game.get('clock', {}).get('timeRemaining'), # clock doesn't exist until game starts.
-                    'is_intermission': game.get('clock', {}).get('inIntermission'),
-                    # Will set the remaining later, default to False and None for now.
-                    'home_team_scored': False,
-                    'away_team_scored': False,
-                    'scoring_team': None
-                })
+        # For each game, build a dict recording current game details.
+        if games_json: # If games today.
+            for game in games_json:
+                # Append the dict to the games list. We only want to get regular season (gameType = 2) and playoff (3) games.
+                # Note that 19 and 20 may need to be included. These were used for the 4 Nations Face-Off round robin & finals and will be evaluated again in the future.
+                if game['gameType'] in [2, 3]:
+                    games.append({
+                        'game_id': game['id'],
+                        'home_abrv': game['homeTeam']['abbrev'],
+                        'away_abrv': game['awayTeam']['abbrev'],
+                        'home_score': game['homeTeam'].get('score'), # Doesn't exist until game starts.
+                        'away_score': game['awayTeam'].get('score'),
+                        'start_datetime_utc': dt.strptime(game['startTimeUTC'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=tz.utc),
+                        'start_datetime_local': dt.strptime(game['startTimeUTC'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=tz.utc).astimezone(tz=None), # Convert UTC to local time.
+                        'status': game['gameState'],
+                        'has_started': True if game['gameState'] in ['LIVE', 'CRIT', 'OFF', 'FINAL'] else False,
+                        'period_num': game.get('period'), # Doesn't until game starts.
+                        'period_type': game.get('periodDescriptor', {}).get('periodType'), # periodDescriptor doesn't exist until game starts.
+                        'period_time_remaining': game.get('clock', {}).get('timeRemaining'), # clock doesn't exist until game starts.
+                        'is_intermission': game.get('clock', {}).get('inIntermission'),
+                        # Will set the remaining later, default to False and None for now.
+                        'home_team_scored': False,
+                        'away_team_scored': False,
+                        'scoring_team': None
+                    })
 
-    return games
+        return games
 
 
+    except Exception as e:
+        print(f'Error in get_games: {e}')
+        return []
 def get_next_game(team):
     """ Loads next game details for the supplied NHL team.
     If the team is currently playing, will return details of the current game.
@@ -118,86 +122,90 @@ def get_standings():
         dict: Dict containing all standings by each category.
     """
 
-    # Call the NHL standings API and store the JSON results.
-    url = 'https://api-web.nhle.com/v1/standings/now'
-    standings_response = session.get(url=url)
-    standings_json = standings_response.json()['standings']
+    try:
+        # Call the NHL standings API and store the JSON results.
+        url = 'https://api-web.nhle.com/v1/standings/now'
+        standings_response = session.get(url=url)
+        standings_json = standings_response.json()['standings']
 
-    # Set up structure of the returned dict.
-    # Teams lists will be populated w/ the API results.
-    standings = {
-        'retrieved_on': dt.now().astimezone(),
-        'league': {
-            'NHL': { # Exists to match structure needed for other standing types.
-                'rank_method': 'Points',
-                'team_standings': [] # Will be populated w/ the API results.
+        # Set up structure of the returned dict.
+        # Teams lists will be populated w/ the API results.
+        standings = {
+            'retrieved_on': dt.now().astimezone(),
+            'league': {
+                'NHL': { # Exists to match structure needed for other standing types.
+                    'rank_method': 'Points',
+                    'team_standings': [] # Will be populated w/ the API results.
+                }
+            },
+            'wildcard': {
+                conf: {
+                    'subdivision_abrv': conf_abrv,
+                    'rank_method': 'Points',
+                    'playoff_cutoff_hard': 8, # Not exactly true... but will help build the images. Total num of playoff bound teams.
+                    'playoff_cutoff_soft': 6,
+                    'team_standings': [] # Will be populated w/ the API results.
+                } for conf, conf_abrv in [('Eastern', 'EC'), ('Western', 'WC')]
+            },
+            'conference': {
+                conf: {
+                    'subdivision_abrv': conf_abrv,
+                    'rank_method': 'Points',
+                    'team_standings': []
+                } for conf, conf_abrv in [('Eastern', 'EC'), ('Western', 'WC')]
+            },
+            'division': {
+                div: {
+                    'subdivision_abrv': div_abrv,
+                    'rank_method': 'Points',
+                    'playoff_cutoff_soft': 3,
+                    'team_standings': []
+                } for div, div_abrv in [('Atlantic', 'Atl'), ('Metropolitan', 'Met'), ('Central', 'Cen'), ('Pacific', 'Pac')]
             }
-        },
-        'wildcard': {
-            conf: {
-                'subdivision_abrv': conf_abrv,
-                'rank_method': 'Points',
-                'playoff_cutoff_hard': 8, # Not exactly true... but will help build the images. Total num of playoff bound teams.
-                'playoff_cutoff_soft': 6,
-                'team_standings': [] # Will be populated w/ the API results.
-            } for conf, conf_abrv in [('Eastern', 'EC'), ('Western', 'WC')]
-        },
-        'conference': {
-            conf: {
-                'subdivision_abrv': conf_abrv,
-                'rank_method': 'Points',
-                'team_standings': []
-            } for conf, conf_abrv in [('Eastern', 'EC'), ('Western', 'WC')]
-        },
-        'division': {
-            div: {
-                'subdivision_abrv': div_abrv,
-                'rank_method': 'Points',
-                'playoff_cutoff_soft': 3,
-                'team_standings': []
-            } for div, div_abrv in [('Atlantic', 'Atl'), ('Metropolitan', 'Met'), ('Central', 'Cen'), ('Pacific', 'Pac')]
         }
-    }
 
-    # Populate the team lists w/ dicts containing details of each team.
-    # API returns teams in overall standing order, so generally won't have to sort.
-    for team in standings_json:
-        # Overall league.
-        standings['league']['NHL']['team_standings'].append({
-            'team_abrv': team['teamAbbrev']['default'],
-            'rank': team['leagueSequence'],
-            'points': team['points'],
-            'has_clinched': 'clinchIndicator' in team # The clinchIndicator key will only exist for teams that have clinched.
-        })
+        # Populate the team lists w/ dicts containing details of each team.
+        # API returns teams in overall standing order, so generally won't have to sort.
+        for team in standings_json:
+            # Overall league.
+            standings['league']['NHL']['team_standings'].append({
+                'team_abrv': team['teamAbbrev']['default'],
+                'rank': team['leagueSequence'],
+                'points': team['points'],
+                'has_clinched': 'clinchIndicator' in team # The clinchIndicator key will only exist for teams that have clinched.
+            })
 
-        # Wildcards by conference.
-        standings['wildcard'][team['conferenceName']]['team_standings'].append({
-            'team_abrv': team['teamAbbrev']['default'],
-            'rank': team['wildcardSequence'] if team['wildcardSequence'] != 0 else team['divisionAbbrev'] + str(team['divisionSequence']), # Top 3 teams will have a wildcardSequence of 0.
-            # Rank helper will allow us to group top 3 teams in each div so they appear together at the top of the WC standings.
-            'rank_helper': 'W' + str(team['wildcardSequence']).zfill(2) if team['wildcardSequence'] != 0 else team['divisionAbbrev'] + str(team['divisionSequence']),
-            'points': team['points'],
-            'has_clinched': 'clinchIndicator' in team and team.get('clinchIndicator') != 'e' # The clinchIndicator key will only exist for teams that have clinched or been eliminated. Exclude teams that have been eliminated, which have a clinchIndicator of 'e'.
-        })
+            # Wildcards by conference.
+            standings['wildcard'][team['conferenceName']]['team_standings'].append({
+                'team_abrv': team['teamAbbrev']['default'],
+                'rank': team['wildcardSequence'] if team['wildcardSequence'] != 0 else team['divisionAbbrev'] + str(team['divisionSequence']), # Top 3 teams will have a wildcardSequence of 0.
+                # Rank helper will allow us to group top 3 teams in each div so they appear together at the top of the WC standings.
+                'rank_helper': 'W' + str(team['wildcardSequence']).zfill(2) if team['wildcardSequence'] != 0 else team['divisionAbbrev'] + str(team['divisionSequence']),
+                'points': team['points'],
+                'has_clinched': 'clinchIndicator' in team and team.get('clinchIndicator') != 'e' # The clinchIndicator key will only exist for teams that have clinched or been eliminated. Exclude teams that have been eliminated, which have a clinchIndicator of 'e'.
+            })
 
-        # Conferences.
-        standings['conference'][team['conferenceName']]['team_standings'].append({
-            'team_abrv': team['teamAbbrev']['default'],
-            'rank': team['conferenceSequence'],
-            'points': team['points'],
-            'has_clinched': 'clinchIndicator' in team and team.get('clinchIndicator') != 'e'
-        })
+            # Conferences.
+            standings['conference'][team['conferenceName']]['team_standings'].append({
+                'team_abrv': team['teamAbbrev']['default'],
+                'rank': team['conferenceSequence'],
+                'points': team['points'],
+                'has_clinched': 'clinchIndicator' in team and team.get('clinchIndicator') != 'e'
+            })
 
-        # Divisions.
-        standings['division'][team['divisionName']]['team_standings'].append({
-            'team_abrv': team['teamAbbrev']['default'],
-            'rank': team['divisionSequence'],
-            'points': team['points'],
-            'has_clinched': 'clinchIndicator' in team
-        })
+            # Divisions.
+            standings['division'][team['divisionName']]['team_standings'].append({
+                'team_abrv': team['teamAbbrev']['default'],
+                'rank': team['divisionSequence'],
+                'points': team['points'],
+                'has_clinched': 'clinchIndicator' in team
+            })
 
-    # Sort team list within wildcard to correctly group top three teams in each division.
-    for con in standings['wildcard'].values():
-        con['team_standings'] = sorted(con['team_standings'], key=lambda d: d['rank_helper'])
+        # Sort team list within wildcard to correctly group top three teams in each division.
+        for con in standings['wildcard'].values():
+            con['team_standings'] = sorted(con['team_standings'], key=lambda d: d['rank_helper'])
 
-    return standings
+        return standings
+    except Exception as e:
+        print(f'Error in get_standings: {e}')
+        return {}
