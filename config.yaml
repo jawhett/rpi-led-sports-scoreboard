@@ -2,17 +2,12 @@
 scene_order:
   - nba_games
   - nba_fav_team_next_game
-  - nfl_games
-  - nfl_fav_team_next_game
-  - nba_games
   - nba_standings
   - nfl_games
+  - nfl_fav_team_next_game
   - nfl_standings
-  - nba_games
-  # - nhl_fav_team_next_game
-  # - pwhl_fav_team_next_game
-  # - wnba_fav_team_next_game
-  # - mlb_fav_team_next_game
+  - wnba_games
+  - mlb_games
 
 
 # Note your favourite teams by league. Any number of teams can be specified.
