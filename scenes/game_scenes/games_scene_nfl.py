@@ -379,9 +379,9 @@ class NFLGamesScene(GamesScene):
 
         if clock_str:
             status_text = f"{period_str} {clock_str}" if period_str else clock_str
-            w = self.get_text_3x5_width(status_text)
+            w = get_text_3x5_width(status_text)
             x = 32 - w // 2
-            self.draw_text_3x5('full', x, 1, status_text, self.COLOURS['yellow'])
+            draw_text_3x5(self.draw['full'], x, 1, status_text, self.COLOURS['yellow'])
 
             # Draw clean possession indicator dots right next to status channel
             if self.LEAGUE == 'NFL' and game.get('possession'):
@@ -570,9 +570,9 @@ class NFLGamesScene(GamesScene):
             ot_str = f"{game['period_num'] - 4}OT"
             
         status_text = f"FINAL/{ot_str}" if ot_str else "FINAL"
-        w = self.get_text_3x5_width(status_text)
+        w = get_text_3x5_width(status_text)
         x = 32 - w // 2
-        self.draw_text_3x5('full', x, 1, status_text, self.COLOURS['red_bright'])
+        draw_text_3x5(self.draw['full'], x, 1, status_text, self.COLOURS['red_bright'])
 
         # 4. Draw Timeouts Indicators (row 10)
         if self.LEAGUE == 'NFL':
