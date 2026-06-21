@@ -382,9 +382,9 @@ class NBAWNBAGamesScene(GamesScene):
 
         if clock_str:
             status_text = f"{period_str} {clock_str}" if period_str else clock_str
-            w = len(status_text) * 5
+            w = self.get_text_3x5_width(status_text)
             x = 32 - w // 2
-            self.draw['full'].text((x, 1), status_text, font=self.FONTS['sm'], fill=self.COLOURS['yellow'])
+            self.draw_text_3x5('full', x, 1, status_text, self.COLOURS['yellow'])
 
             # Draw clean possession indicator dots right next to status channel
             if self.LEAGUE == 'NFL' and game.get('possession'):
@@ -394,50 +394,50 @@ class NBAWNBAGamesScene(GamesScene):
                 elif game['possession'] == 'home':
                     self.draw['full'].rectangle([(x + w + 2, 4), (x + w + 3, 5)], fill=poss_color)
 
-        # 4. Draw Timeouts & Bonus Indicators (row 11)
+        # 4. Draw Timeouts & Bonus Indicators (row 10)
         if self.LEAGUE == 'NFL':
             for i in range(3):
                 color = self.COLOURS['yellow_bright'] if i < game.get('away_timeouts', 0) else self.COLOURS['grey_dark']
-                self.draw['full'].point((1 + i * 3, 11), fill=color)
-                self.draw['full'].point((2 + i * 3, 11), fill=color)
+                self.draw['full'].point((1 + i * 3, 10), fill=color)
+                self.draw['full'].point((2 + i * 3, 10), fill=color)
             for i in range(3):
                 color = self.COLOURS['yellow_bright'] if i < game.get('home_timeouts', 0) else self.COLOURS['grey_dark']
-                self.draw['full'].point((53 + i * 3, 11), fill=color)
-                self.draw['full'].point((54 + i * 3, 11), fill=color)
+                self.draw['full'].point((53 + i * 3, 10), fill=color)
+                self.draw['full'].point((54 + i * 3, 10), fill=color)
         else:  # NBA/WNBA
             for i in range(7):
                 color = self.COLOURS['yellow_bright'] if i < game.get('away_timeouts', 0) else self.COLOURS['grey_dark']
-                self.draw['full'].point((0 + i * 2, 11), fill=color)
+                self.draw['full'].point((0 + i * 2, 10), fill=color)
             for i in range(7):
                 color = self.COLOURS['yellow_bright'] if i < game.get('home_timeouts', 0) else self.COLOURS['grey_dark']
-                self.draw['full'].point((50 + i * 2, 11), fill=color)
+                self.draw['full'].point((50 + i * 2, 10), fill=color)
             
             # NBA Bonus indicators next to timeouts on row 11
             if game.get('away_fouls', 0) >= 5:
-                self.draw['full'].rectangle([(15, 11), (17, 11)], fill=self.COLOURS['red_bright'])
+                self.draw['full'].rectangle([(15, 10), (17, 10)], fill=self.COLOURS['red_bright'])
             if game.get('home_fouls', 0) >= 5:
-                self.draw['full'].rectangle([(46, 11), (48, 11)], fill=self.COLOURS['red_bright'])
+                self.draw['full'].rectangle([(46, 10), (48, 10)], fill=self.COLOURS['red_bright'])
 
         # 5. Draw Scores (row 11..30) - using FONTS['giant_bold'] (10x20)
         away_score = game['away_score']
-        w = len(str(away_score)) * 10
+        w = len(str(away_score)) * 8
         x = 16 - w // 2
         color_away = self.COLOURS['white']
         if score_fade_color and game.get('scoring_team') in ['away', 'both']:
             color_away = score_fade_color
         elif self.settings['score_alerting']['score_coloured'] and game.get('away_team_scored'):
             color_away = self.COLOURS['red_bright']
-        self.draw['full'].text((x, 11), str(away_score), font=self.FONTS['giant_bold'], fill=color_away)
+        self.draw['full'].text((x, 10), str(away_score), font=self.FONTS['lrg_bold'], fill=color_away)
 
         home_score = game['home_score']
-        w = len(str(home_score)) * 10
+        w = len(str(home_score)) * 8
         x = 48 - w // 2
         color_home = self.COLOURS['white']
         if score_fade_color and game.get('scoring_team') in ['home', 'both']:
             color_home = score_fade_color
         elif self.settings['score_alerting']['score_coloured'] and game.get('home_team_scored'):
             color_home = self.COLOURS['red_bright']
-        self.draw['full'].text((x, 11), str(home_score), font=self.FONTS['giant_bold'], fill=color_home)
+        self.draw['full'].text((x, 10), str(home_score), font=self.FONTS['lrg_bold'], fill=color_home)
 
         # 6. Padded Bottom Banner (row 27..31) for secondary info
         banner_text = ""
@@ -579,27 +579,27 @@ class NBAWNBAGamesScene(GamesScene):
             ot_str = f"{game['period_num'] - 4}OT"
             
         status_text = f"FINAL/{ot_str}" if ot_str else "FINAL"
-        w = len(status_text) * 5
+        w = self.get_text_3x5_width(status_text)
         x = 32 - w // 2
-        self.draw['full'].text((x, 1), status_text, font=self.FONTS['sm_bold'], fill=self.COLOURS['red_bright'])
+        self.draw_text_3x5('full', x, 1, status_text, self.COLOURS['red_bright'])
 
-        # 4. Draw Timeouts Indicators (row 11)
+        # 4. Draw Timeouts Indicators (row 10)
         if self.LEAGUE == 'NFL':
             for i in range(3):
                 color = self.COLOURS['yellow_bright'] if i < game.get('away_timeouts', 0) else self.COLOURS['grey_dark']
-                self.draw['full'].point((1 + i * 3, 11), fill=color)
-                self.draw['full'].point((2 + i * 3, 11), fill=color)
+                self.draw['full'].point((1 + i * 3, 10), fill=color)
+                self.draw['full'].point((2 + i * 3, 10), fill=color)
             for i in range(3):
                 color = self.COLOURS['yellow_bright'] if i < game.get('home_timeouts', 0) else self.COLOURS['grey_dark']
-                self.draw['full'].point((53 + i * 3, 11), fill=color)
-                self.draw['full'].point((54 + i * 3, 11), fill=color)
+                self.draw['full'].point((53 + i * 3, 10), fill=color)
+                self.draw['full'].point((54 + i * 3, 10), fill=color)
         else:  # NBA/WNBA
             for i in range(7):
                 color = self.COLOURS['yellow_bright'] if i < game.get('away_timeouts', 0) else self.COLOURS['grey_dark']
-                self.draw['full'].point((0 + i * 2, 11), fill=color)
+                self.draw['full'].point((0 + i * 2, 10), fill=color)
             for i in range(7):
                 color = self.COLOURS['yellow_bright'] if i < game.get('home_timeouts', 0) else self.COLOURS['grey_dark']
-                self.draw['full'].point((50 + i * 2, 11), fill=color)
+                self.draw['full'].point((50 + i * 2, 10), fill=color)
 
         # Highlight winner and dim loser scores
         away_score = game['away_score']
@@ -608,14 +608,14 @@ class NBAWNBAGamesScene(GamesScene):
         color_home = self.COLOURS['white'] if home_score >= away_score else self.COLOURS['grey_dark']
 
         # Draw Away Score
-        w = len(str(away_score)) * 10
+        w = len(str(away_score)) * 8
         x = 16 - w // 2
-        self.draw['full'].text((x, 11), str(away_score), font=self.FONTS['giant_bold'], fill=color_away)
+        self.draw['full'].text((x, 10), str(away_score), font=self.FONTS['lrg_bold'], fill=color_away)
 
         # Draw Home Score
-        w = len(str(home_score)) * 10
+        w = len(str(home_score)) * 8
         x = 48 - w // 2
-        self.draw['full'].text((x, 11), str(home_score), font=self.FONTS['giant_bold'], fill=color_home)
+        self.draw['full'].text((x, 10), str(home_score), font=self.FONTS['lrg_bold'], fill=color_home)
 
 
     def fade_score_change(self, game, clock_seconds=None, rotation_mode=0):
