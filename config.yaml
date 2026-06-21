@@ -9,10 +9,10 @@ scene_order:
   - nfl_games
   - nfl_standings
   - nba_games
-  - nhl_fav_team_next_game
-  - pwhl_fav_team_next_game
-  - wnba_fav_team_next_game
-  - mlb_fav_team_next_game
+  # - nhl_fav_team_next_game
+  # - pwhl_fav_team_next_game
+  # - wnba_fav_team_next_game
+  # - mlb_fav_team_next_game
 
 
 # Note your favourite teams by league. Any number of teams can be specified.
@@ -57,8 +57,8 @@ scene_settings:
       transition: 'modern'
       splash:
         display_splash: True
-        splash_display_duration: 2
-      game_display_duration: 3.5
+        splash_display_duration: 1.5
+      game_display_duration: 3.0
       score_alerting:
         score_coloured: true
         score_fade_animation: true
@@ -69,14 +69,14 @@ scene_settings:
 
     fav_team_next_game: # nhl_fav_team_next_game scene.
       transition: 'modern'
-      display_duration: 3.5
+      display_duration: 3.0
       display_if_in_progress: True
 
     standings: # nhl_standings scene.
       transition: 'modern'
       splash:
         display_splash: True
-        splash_display_duration: 2
+        splash_display_duration: 1.5
       scroll:
         scroll_pause_duration: 1
         scroll_frame_duration: 0.075
@@ -93,8 +93,8 @@ scene_settings:
       transition: 'modern'
       splash:
         display_splash: True
-        splash_display_duration: 2
-      game_display_duration: 3.5
+        splash_display_duration: 1.5
+      game_display_duration: 3.0
       score_alerting:
         score_coloured: true
         score_fade_animation: true
@@ -105,14 +105,14 @@ scene_settings:
 
     fav_team_next_game: # pwhl_fav_team_next_game scene.
       transition: 'modern'
-      display_duration: 3.5
+      display_duration: 3.0
       display_if_in_progress: True
 
     standings: # pwhl_standings scene.
       transition: 'modern'
       splash:
         display_splash: True
-        splash_display_duration: 2
+        splash_display_duration: 1.5
       scroll:
         scroll_pause_duration: 1
         scroll_frame_duration: 0.075
@@ -127,8 +127,8 @@ scene_settings:
       transition: 'modern'
       splash:
         display_splash: True
-        splash_display_duration: 2
-      game_display_duration: 3.5
+        splash_display_duration: 1.5
+      game_display_duration: 3.0
       score_alerting:
         score_coloured: true
         score_fade_animation: true
@@ -139,14 +139,14 @@ scene_settings:
 
     fav_team_next_game: # nba_fav_team_next_game scene.
       transition: 'modern'
-      display_duration: 3.5
+      display_duration: 3.0
       display_if_in_progress: True
 
     standings: # nba_standings scene.
       transition: 'modern'
       splash:
         display_splash: True
-        splash_display_duration: 2
+        splash_display_duration: 1.5
       scroll:
         scroll_pause_duration: 1
         scroll_frame_duration: 0.075
@@ -161,8 +161,8 @@ scene_settings:
       transition: 'modern'
       splash:
         display_splash: True
-        splash_display_duration: 2
-      game_display_duration: 3.5
+        splash_display_duration: 1.5
+      game_display_duration: 3.0
       score_alerting:
         score_coloured: false
         score_fade_animation: false
@@ -173,14 +173,14 @@ scene_settings:
 
     fav_team_next_game: # wnba_fav_team_next_game scene.
       transition: 'modern'
-      display_duration: 3.5
+      display_duration: 3.0
       display_if_in_progress: True
 
     standings: # wnba_standings scene.
       transition: 'modern'
       splash:
         display_splash: True
-        splash_display_duration: 2
+        splash_display_duration: 1.5
       scroll:
         scroll_pause_duration: 1
         scroll_frame_duration: 0.075
@@ -195,8 +195,8 @@ scene_settings:
       transition: 'modern'
       splash:
         display_splash: True
-        splash_display_duration: 2
-      game_display_duration: 3.5
+        splash_display_duration: 1.5
+      game_display_duration: 3.0
       display_outs_and_bases: True
       score_alerting:
         score_coloured: True
@@ -208,14 +208,14 @@ scene_settings:
 
     fav_team_next_game: # mlb_fav_team_next_game scene.
       transition: 'modern'
-      display_duration: 3.5
+      display_duration: 3.0
       display_if_in_progress: True
 
     standings: # mlb_standings scene.
       transition: 'modern'
       splash:
         display_splash: True
-        splash_display_duration: 2
+        splash_display_duration: 1.5
       scroll:
         scroll_pause_duration: 1
         scroll_frame_duration: 0.075
@@ -231,8 +231,8 @@ scene_settings:
       transition: 'modern'
       splash:
         display_splash: True
-        splash_display_duration: 2
-      game_display_duration: 3.5
+        splash_display_duration: 1.5
+      game_display_duration: 3.0
       score_alerting:
         score_coloured: true
         score_fade_animation: true
@@ -243,14 +243,14 @@ scene_settings:
 
     fav_team_next_game: # nfl_fav_team_next_game scene.
       transition: 'modern'
-      display_duration: 3.5
+      display_duration: 3.0
       display_if_in_progress: True
 
     standings: # nfl_standings scene.
       transition: 'modern'
       splash:
         display_splash: True
-        splash_display_duration: 2
+        splash_display_duration: 1.5
       scroll:
         scroll_pause_duration: 1
         scroll_frame_duration: 0.075
