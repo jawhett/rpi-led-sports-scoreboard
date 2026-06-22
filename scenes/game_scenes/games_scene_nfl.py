@@ -1,3 +1,4 @@
+from utils.data_utils import TEAM_COLORS
 from .games_scene import GamesScene
 from setup.matrix_setup import matrix
 import data.nfl_data
@@ -413,7 +414,7 @@ class NFLGamesScene(GamesScene):
         away_score = game['away_score']
         w = len(str(away_score)) * 8
         x = 16 - w // 2
-        color_away = self.COLOURS['white']
+        color_away = TEAM_COLORS.get(game['away_abrv'], self.COLOURS['white'])
         if score_fade_color and game.get('scoring_team') in ['away', 'both']:
             color_away = score_fade_color
         elif self.settings['score_alerting']['score_coloured'] and game.get('away_team_scored'):
@@ -423,7 +424,7 @@ class NFLGamesScene(GamesScene):
         home_score = game['home_score']
         w = len(str(home_score)) * 8
         x = 48 - w // 2
-        color_home = self.COLOURS['white']
+        color_home = TEAM_COLORS.get(game['home_abrv'], self.COLOURS['white'])
         if score_fade_color and game.get('scoring_team') in ['home', 'both']:
             color_home = score_fade_color
         elif self.settings['score_alerting']['score_coloured'] and game.get('home_team_scored'):
@@ -449,12 +450,14 @@ class NFLGamesScene(GamesScene):
 
         if not alert_text_override and rotation_mode == 2 and self.LEAGUE == 'NFL' and game.get('home_win_pct') is not None:
             pct = game['home_win_pct']
-            fav_abrv = game['home_abrv'] if pct >= 50 else game['away_abrv']
-            fav_pct = int(pct if pct >= 50 else (100 - pct))
-            banner_text = f"{fav_abrv} WIN PROB {fav_pct}%"
-            banner_color = self.COLOURS['green_bright']
-
-        if banner_text:
+            away_width = int((100 - pct) / 100.0 * 64)
+            away_col = TEAM_COLORS.get(game['away_abrv'], self.COLOURS['white'])
+            home_col = TEAM_COLORS.get(game['home_abrv'], self.COLOURS['white'])
+            if away_width > 0:
+                self.draw['full'].line([(0, 31), (away_width - 1, 31)], fill=away_col)
+            if away_width < 64:
+                self.draw['full'].line([(away_width, 31), (63, 31)], fill=home_col)
+        elif banner_text:
             w = get_text_3x5_width(banner_text)
             x = 32 - w // 2
             draw_text_3x5(self.draw['full'], x, 27, banner_text, banner_color)

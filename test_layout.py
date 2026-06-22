@@ -1,6 +1,7 @@
 import os
 import math
 from PIL import Image, ImageDraw, ImageFont
+from utils.data_utils import TEAM_COLORS
 
 # Define fonts
 FONTS = {
@@ -258,9 +259,9 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0):
     if status_code == 2 or status_code == 3:  # In Progress or Completed
         # Draw Away Score
         away_score = game['away_score']
-        away_color = COLOURS['white']
+        away_color = TEAM_COLORS.get(game['away_abrv'], COLOURS['white'])
         if status_code == 3 and game['away_score'] < game['home_score']:
-            away_color = COLOURS['grey_dark']
+            away_color = (away_color[0] // 3, away_color[1] // 3, away_color[2] // 3)
             
         w = len(str(away_score)) * 8
         x = 16 - w // 2
@@ -268,9 +269,9 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0):
 
         # Draw Home Score
         home_score = game['home_score']
-        home_color = COLOURS['white']
+        home_color = TEAM_COLORS.get(game['home_abrv'], COLOURS['white'])
         if status_code == 3 and game['home_score'] < game['away_score']:
-            home_color = COLOURS['grey_dark']
+            home_color = (home_color[0] // 3, home_color[1] // 3, home_color[2] // 3)
             
         w = len(str(home_score)) * 8
         x = 48 - w // 2
@@ -291,15 +292,20 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0):
             else:
                 banner_color = COLOURS['yellow_bright']
 
+        # Handle win probability logic specifically, separating it from text
         if rotation_mode == 2 and league == 'NFL' and game.get('home_win_pct') is not None:
             pct = game['home_win_pct']
-            fav_abrv = game['home_abrv'] if pct >= 50 else game['away_abrv']
-            fav_pct = int(pct if pct >= 50 else (100 - pct))
-            banner_text = f"{fav_abrv} WIN PROB {fav_pct}%"
-            banner_color = COLOURS['green_bright']
+            away_width = int((100 - pct) / 100.0 * 64)
+            away_col = TEAM_COLORS.get(game['away_abrv'], COLOURS['white'])
+            home_col = TEAM_COLORS.get(game['home_abrv'], COLOURS['white'])
+
+            if away_width > 0:
+                draw.line([(0, 31), (away_width - 1, 31)], fill=away_col)
+            if away_width < 64:
+                draw.line([(away_width, 31), (63, 31)], fill=home_col)
 
         # Center banner text using our 3x5 font helper (drawn at y=27 to create 1px padding on row 26)
-        if banner_text:
+        elif banner_text:
             w = get_text_3x5_width(banner_text)
             x = 32 - w // 2
             draw_text_3x5(draw, x, 27, banner_text, banner_color)

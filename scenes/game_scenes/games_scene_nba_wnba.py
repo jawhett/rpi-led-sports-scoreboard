@@ -1,3 +1,4 @@
+from utils.data_utils import TEAM_COLORS
 from .games_scene import GamesScene
 from setup.matrix_setup import matrix
 import data.nba_wnba_data
@@ -422,7 +423,7 @@ class NBAWNBAGamesScene(GamesScene):
         away_score = game['away_score']
         w = len(str(away_score)) * 8
         x = 16 - w // 2
-        color_away = self.COLOURS['white']
+        color_away = TEAM_COLORS.get(game['away_abrv'], self.COLOURS['white'])
         if score_fade_color and game.get('scoring_team') in ['away', 'both']:
             color_away = score_fade_color
         elif self.settings['score_alerting']['score_coloured'] and game.get('away_team_scored'):
@@ -432,7 +433,7 @@ class NBAWNBAGamesScene(GamesScene):
         home_score = game['home_score']
         w = len(str(home_score)) * 8
         x = 48 - w // 2
-        color_home = self.COLOURS['white']
+        color_home = TEAM_COLORS.get(game['home_abrv'], self.COLOURS['white'])
         if score_fade_color and game.get('scoring_team') in ['home', 'both']:
             color_home = score_fade_color
         elif self.settings['score_alerting']['score_coloured'] and game.get('home_team_scored'):

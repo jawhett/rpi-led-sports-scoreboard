@@ -27,3 +27,18 @@ def read_yaml(file_path):
         data = yaml.safe_load(file)
         _yaml_cache[file_path] = (current_mtime, data)
         return data
+
+TEAM_COLORS = {
+    'SF': (170, 0, 0),
+    'KC': (227, 24, 55),
+    'DAL': (0, 34, 68),
+    'PHI': (0, 76, 84),
+    'BOS': (0, 122, 51),
+    'LAL': (85, 37, 130),
+    'TOR': (206, 17, 65),
+    'NYK': (0, 107, 182),
+    'NYY': (0, 48, 135),
+    'LAD': (0, 90, 156),
+    'BUF': (0, 51, 141),
+    'CHI': (200, 16, 46)
+}
