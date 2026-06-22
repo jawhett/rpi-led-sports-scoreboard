@@ -1,6 +1,7 @@
 from ..scene import Scene
 from setup.matrix_setup import matrix, matrix_options
 from utils import image_utils
+from utils.data_utils import TEAM_COLORS
 
 from PIL import Image, ImageDraw
 from time import sleep
@@ -317,9 +318,9 @@ class GamesScene(Scene):
             colour_override (tuple): Colour that the overriding_team's score should appear in. Defaults to None.
         """
 
-        # First, default both team's score colour to white.
-        colour_away = self.COLOURS['white']
-        colour_home = self.COLOURS['white']
+        # First, default both team's score colour to their team colour (or white).
+        colour_away = TEAM_COLORS.get(game['away_abrv'], self.COLOURS['white'])
+        colour_home = TEAM_COLORS.get(game['home_abrv'], self.COLOURS['white'])
 
         # Check one or both teams scored. Set the team's starting colour to colour_override if that team scored.
         if self.settings['score_alerting']['score_coloured']:
