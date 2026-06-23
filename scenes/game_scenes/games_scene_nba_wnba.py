@@ -13,8 +13,8 @@ import os
 def compact_down_distance(text):
     if not text:
         return ""
-    text = text.upper().replace(" & ", "&")
-    text = text.replace("GOAL", "G")
+    text = text.upper()
+    text = text.replace("GOAL", "G").replace(" & ", " ")
     return text
 
 
@@ -102,6 +102,7 @@ FONT_3X5 = {
     'Y': (5, 5, 2, 2, 2),
     'Z': (7, 1, 2, 4, 7),
     '@': (5, 7, 5, 1, 7),
+    '&': (2, 5, 2, 5, 3),
 }
 
 
@@ -428,7 +429,7 @@ class NBAWNBAGamesScene(GamesScene):
             color_away = score_fade_color
         elif self.settings['score_alerting']['score_coloured'] and game.get('away_team_scored'):
             color_away = self.COLOURS['red_bright']
-        self.draw['full'].text((x, 10), str(away_score), font=self.FONTS['lrg_bold'], fill=color_away)
+        self.draw['full'].text((x, 12), str(away_score), font=self.FONTS['lrg_bold'], fill=color_away)
 
         home_score = game['home_score']
         w = len(str(home_score)) * 8
@@ -438,7 +439,7 @@ class NBAWNBAGamesScene(GamesScene):
             color_home = score_fade_color
         elif self.settings['score_alerting']['score_coloured'] and game.get('home_team_scored'):
             color_home = self.COLOURS['red_bright']
-        self.draw['full'].text((x, 10), str(home_score), font=self.FONTS['lrg_bold'], fill=color_home)
+        self.draw['full'].text((x, 12), str(home_score), font=self.FONTS['lrg_bold'], fill=color_home)
 
         # 6. Padded Bottom Banner (row 27..31) for secondary info
         banner_text = ""
@@ -611,12 +612,12 @@ class NBAWNBAGamesScene(GamesScene):
         # Draw Away Score
         w = len(str(away_score)) * 8
         x = 16 - w // 2
-        self.draw['full'].text((x, 10), str(away_score), font=self.FONTS['lrg_bold'], fill=color_away)
+        self.draw['full'].text((x, 12), str(away_score), font=self.FONTS['lrg_bold'], fill=color_away)
 
         # Draw Home Score
         w = len(str(home_score)) * 8
         x = 48 - w // 2
-        self.draw['full'].text((x, 10), str(home_score), font=self.FONTS['lrg_bold'], fill=color_home)
+        self.draw['full'].text((x, 12), str(home_score), font=self.FONTS['lrg_bold'], fill=color_home)
 
 
     def fade_score_change(self, game, clock_seconds=None, rotation_mode=0):
