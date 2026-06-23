@@ -55,8 +55,8 @@ def load_logo(league, team_abrv):
 def compact_down_distance(text):
     if not text:
         return ""
-    text = text.upper().replace(" & ", "&")
-    text = text.replace("GOAL", "G")
+    text = text.upper()
+    text = text.replace("GOAL", "G").replace(" & ", " ")
     return text
 
 def parse_odds(odds_str):
@@ -142,6 +142,7 @@ FONT_3X5 = {
     'Y': (5, 5, 2, 2, 2),
     'Z': (7, 1, 2, 4, 7),
     '@': (5, 7, 5, 1, 7),
+    '&': (2, 5, 2, 5, 3),
 }
 
 def draw_text_3x5(draw, x, y, text, fill_color):
@@ -265,7 +266,7 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0):
             
         w = len(str(away_score)) * 8
         x = 16 - w // 2
-        draw.text((x, 10), str(away_score), font=FONTS['lrg_bold'], fill=away_color)
+        draw.text((x, 12), str(away_score), font=FONTS['lrg_bold'], fill=away_color)
 
         # Draw Home Score
         home_score = game['home_score']
@@ -275,7 +276,7 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0):
             
         w = len(str(home_score)) * 8
         x = 48 - w // 2
-        draw.text((x, 10), str(home_score), font=FONTS['lrg_bold'], fill=home_color)
+        draw.text((x, 12), str(home_score), font=FONTS['lrg_bold'], fill=home_color)
 
     # 5. Horizontal bottom banner (row 27..31) for secondary info (leaves row 26 blank for padding)
     if status_code == 2:  # In Progress

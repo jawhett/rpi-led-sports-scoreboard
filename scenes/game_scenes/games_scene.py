@@ -334,11 +334,11 @@ class GamesScene(Scene):
         # If both scores are <10, display large numbers and a hyphen in set locations.
         if max(away_score_digits, home_score_digits) == 1:
             # Add the hyphen to the centre image.
-            self.draw['centre'].text((8, 19), "-", font=self.FONTS['sm_bold'], fill=self.COLOURS['white'])
+            self.draw['centre'].text((8, 18), "-", font=self.FONTS['sm_bold'], fill=self.COLOURS['white'])
 
             # Add the scores to the centre image with the colour determined above.
-            self.draw['centre'].text((0, 16), str(game['away_score']), font=self.FONTS['lrg_bold'], fill=colour_away)
-            self.draw['centre'].text((12, 16), str(game['home_score']), font=self.FONTS['lrg_bold'], fill=colour_home)
+            self.draw['centre'].text((0, 15), str(game['away_score']), font=self.FONTS['lrg_bold'], fill=colour_away)
+            self.draw['centre'].text((12, 15), str(game['home_score']), font=self.FONTS['lrg_bold'], fill=colour_home)
 
         # Otherwise, smaller numbers and no hyphen.
         else:

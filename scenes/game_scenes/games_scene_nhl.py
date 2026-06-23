@@ -271,7 +271,7 @@ class NHLGamesScene(GamesScene):
             w = len(str(away_score)) * 7
         else:
             away_font = self.FONTS['lrg_bold']
-            y_offset = 16
+            y_offset = 15
             w = len(str(away_score)) * 8
         x = 12 - w // 2
         
@@ -291,7 +291,7 @@ class NHLGamesScene(GamesScene):
             w = len(str(home_score)) * 7
         else:
             home_font = self.FONTS['lrg_bold']
-            y_offset = 16
+            y_offset = 15
             w = len(str(home_score)) * 8
         x = 51 - w // 2
         
@@ -432,7 +432,7 @@ class NHLGamesScene(GamesScene):
             w = len(str(away_score)) * 7
         else:
             away_font = self.FONTS['lrg_bold']
-            y_offset = 16
+            y_offset = 15
             w = len(str(away_score)) * 8
         x = 12 - w // 2
         self.draw['full'].text((x, y_offset), str(away_score), font=away_font, fill=color_away)
@@ -444,7 +444,7 @@ class NHLGamesScene(GamesScene):
             w = len(str(home_score)) * 7
         else:
             home_font = self.FONTS['lrg_bold']
-            y_offset = 16
+            y_offset = 15
             w = len(str(home_score)) * 8
         x = 51 - w // 2
         self.draw['full'].text((x, y_offset), str(home_score), font=home_font, fill=color_home)
