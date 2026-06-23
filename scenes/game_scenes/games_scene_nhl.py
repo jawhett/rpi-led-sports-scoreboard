@@ -194,9 +194,15 @@ class NHLGamesScene(GamesScene):
             sleep(self.settings['game_display_duration'])
             self.transition_image(direction='out', image_already_combined=True)
 
-    def build_game_in_progress_image(self, game, score_fade_color=None, clock_seconds_override=None, blink_colon=False):
+    def build_game_in_progress_image(self, game, score_fade_color=None, clock_seconds_override=None, rotation_mode=0, blink_colon=False, alert_text_override=None):
         """ Builds a stadium-style scoreboard image for games in progress.
         """
+        from utils import image_utils
+        from PIL import Image
+        import os
+        from utils.data_utils import TEAM_COLORS
+        from test_layout import get_text_3x5_width, draw_text_3x5
+
         image_utils.clear_image(self.images['full'], self.draw['full'])
         
         # 1. Draw Away Team Logo
@@ -205,12 +211,12 @@ class NHLGamesScene(GamesScene):
             try:
                 away_logo = Image.open(away_logo_path)
                 away_logo = image_utils.crop_image(away_logo)
-                away_logo.thumbnail((22, 16))
-                x = (24 - away_logo.width) // 2
-                y = (15 - away_logo.height) // 2
-                self.images['full'].paste(away_logo, (x, y))
+                away_logo.thumbnail((12, 9))
+                x = 1
+                y = (10 - away_logo.height) // 2
+                self.images['full'].paste(away_logo, (x, max(0, y)))
             except Exception as e:
-                print(f"Error loading logo {away_logo_path}: {e}")
+                pass
 
         # 2. Draw Home Team Logo
         home_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["home_abrv"]}.png' if game["home_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["home_abrv"]}_{self.alt_logos[game["home_abrv"]]}.png'
@@ -218,12 +224,12 @@ class NHLGamesScene(GamesScene):
             try:
                 home_logo = Image.open(home_logo_path)
                 home_logo = image_utils.crop_image(home_logo)
-                home_logo.thumbnail((22, 16))
-                x = 40 + (24 - home_logo.width) // 2
-                y = (15 - home_logo.height) // 2
-                self.images['full'].paste(home_logo, (x, y))
+                home_logo.thumbnail((12, 9))
+                x = 63 - home_logo.width
+                y = (10 - home_logo.height) // 2
+                self.images['full'].paste(home_logo, (x, max(0, y)))
             except Exception as e:
-                print(f"Error loading logo {home_logo_path}: {e}")
+                pass
 
         # 3. Draw Clock (top center, yellow - y=0)
         clock_str = ""
@@ -469,34 +475,34 @@ class NHLGamesScene(GamesScene):
 
         # If intermission, add "INT" to the image.
         if game['is_intermission']:
-            self.draw['centre'].text((1, 7), 'INT', font=self.FONTS['med'], fill=self.COLOURS['white'])
+            self.draw['full'].text((1, 7), 'INT', font=self.FONTS['med'], fill=self.COLOURS['white'])
 
         # If the first period, add "1st" to the image.
         if game['period_num'] == 1:
-            self.draw['centre'].text((4, -1), '1', font=self.FONTS['med'], fill=self.COLOURS['white'])
-            self.draw['centre'].text((8, -1), 's', font=self.FONTS['sm'], fill=self.COLOURS['white'])
-            self.draw['centre'].text((12, -1), 't', font=self.FONTS['sm'], fill=self.COLOURS['white'])
+            self.draw['full'].text((4, -1), '1', font=self.FONTS['med'], fill=self.COLOURS['white'])
+            self.draw['full'].text((8, -1), 's', font=self.FONTS['sm'], fill=self.COLOURS['white'])
+            self.draw['full'].text((12, -1), 't', font=self.FONTS['sm'], fill=self.COLOURS['white'])
 
         # If the second period, add "2nd" to the image.
         elif game['period_num'] == 2:
-            self.draw['centre'].text((3, -1), '2', font=self.FONTS['med'], fill=self.COLOURS['white'])
-            self.draw['centre'].text((9, -1), 'n', font=self.FONTS['sm'], fill=self.COLOURS['white'])
-            self.draw['centre'].text((13, -1), 'd', font=self.FONTS['sm'], fill=self.COLOURS['white'])
+            self.draw['full'].text((3, -1), '2', font=self.FONTS['med'], fill=self.COLOURS['white'])
+            self.draw['full'].text((9, -1), 'n', font=self.FONTS['sm'], fill=self.COLOURS['white'])
+            self.draw['full'].text((13, -1), 'd', font=self.FONTS['sm'], fill=self.COLOURS['white'])
 
         # If the third period, add "3rd" to the image.
         elif game['period_num'] == 3:
-            self.draw['centre'].text((3, -1), '3', font=self.FONTS['med'], fill=self.COLOURS['white'])
-            self.draw['centre'].text((9, -1), 'r', font=self.FONTS['sm'], fill=self.COLOURS['white'])
-            self.draw['centre'].text((13, -1), 'd', font=self.FONTS['sm'], fill=self.COLOURS['white'])
+            self.draw['full'].text((3, -1), '3', font=self.FONTS['med'], fill=self.COLOURS['white'])
+            self.draw['full'].text((9, -1), 'r', font=self.FONTS['sm'], fill=self.COLOURS['white'])
+            self.draw['full'].text((13, -1), 'd', font=self.FONTS['sm'], fill=self.COLOURS['white'])
 
         # If in shootout or first OT, add that to the image.
         elif game['period_type'] == 'SO' or (game['period_type'] == 'OT' and game['period_num'] == 4):
-            self.draw['centre'].text((4, -1), game['period_type'], font=self.FONTS['med'], fill=self.COLOURS['white'])
+            self.draw['full'].text((4, -1), game['period_type'], font=self.FONTS['med'], fill=self.COLOURS['white'])
 
         # Otherwise, we're in 2OT, or later. Calculate the number of OT periods and add that to the image.
         elif game['period_type'] == 'OT':
             per = f'{game['period_num'] - 3}{game['period_type']}'
-            self.draw['centre'].text((1, -1), per, font=self.FONTS['med'], fill=self.COLOURS['white'])
+            self.draw['full'].text((1, -1), per, font=self.FONTS['med'], fill=self.COLOURS['white'])
 
 
     def add_final_playing_period_to_image(self, game):
@@ -508,12 +514,12 @@ class NHLGamesScene(GamesScene):
 
         # If game ended in a SO or the first OT, add that to the centre image.
         if game['period_type'] == 'SO' or (game['period_type'] == 'OT' and game['period_num'] == 4): # If the game ended in single OT a SO.
-            self.draw['centre'].text((4, 8), game['period_type'], font=self.FONTS['med'], fill=self.COLOURS['white'])
+            self.draw['full'].text((4, 8), game['period_type'], font=self.FONTS['med'], fill=self.COLOURS['white'])
 
         # Or if in 2OT or later. Calculate the number of OT periods and add that to the centre image.
         elif game['period_type'] == 'OT':
-            self.draw['centre'].text((1, 8), str(game['period_num'] - 3), font=self.FONTS['med'], fill=self.COLOURS['white'])
-            self.draw['centre'].text((8, 8), game['period_type'], font=self.FONTS['med'], fill=self.COLOURS['white'])
+            self.draw['full'].text((1, 8), str(game['period_num'] - 3), font=self.FONTS['med'], fill=self.COLOURS['white'])
+            self.draw['full'].text((8, 8), game['period_type'], font=self.FONTS['med'], fill=self.COLOURS['white'])
 
 
     def should_display_time_remaining_in_playing_period(self, game):

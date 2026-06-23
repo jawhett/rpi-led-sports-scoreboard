@@ -149,28 +149,90 @@ class MLBGamesScene(GamesScene):
             self.transition_image(direction='out', image_already_combined=True)
 
 
-    def build_game_in_progress_image(self, game):
-        """ Builds image for when the game is in progress.
-        Includes team logos, score, period, and time remaining.
-
-        Args:
-            game (dict): Dictionary with all details of a specific game.
+    def build_game_in_progress_image(self, game, score_fade_color=None, clock_seconds_override=None, rotation_mode=0, blink_colon=False, alert_text_override=None):
+        """ Builds a stadium-style scoreboard image for games in progress.
         """
+        from utils import image_utils
+        from PIL import Image
+        import os
+        from utils.data_utils import TEAM_COLORS
+        from test_layout import get_text_3x5_width, draw_text_3x5
 
-        # First, add the team logos to the left and right images.
-        self.add_team_logos_to_image(game)
+        image_utils.clear_image(self.images['full'], self.draw['full'])
 
-        # Add the inning to the centre image.
-        self.add_playing_period_to_image(game) # This exists in parent class, but is overridden here due to baseball using innings.
+        # 1. Draw Away Team Logo (reduced to 12x9 to prevent overlap with status)
+        away_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["away_abrv"]}.png' if game["away_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["away_abrv"]}_{self.alt_logos[game["away_abrv"]]}.png'
+        if os.path.exists(away_logo_path):
+            try:
+                away_logo = Image.open(away_logo_path)
+                away_logo = image_utils.crop_image(away_logo)
+                away_logo.thumbnail((12, 9))
+                x = 1
+                y = (10 - away_logo.height) // 2
+                self.images['full'].paste(away_logo, (x, max(0, y)))
+            except Exception as e:
+                pass
 
-        # Add the current score to the centre image, noting if either team scored since previous data pull.
-        self.add_score_to_image(game, overriding_team=game['scoring_team'], colour_override=self.COLOURS['red'])
+        # 2. Draw Home Team Logo (reduced to 12x9 to prevent overlap with status)
+        home_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["home_abrv"]}.png' if game["home_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["home_abrv"]}_{self.alt_logos[game["home_abrv"]]}.png'
+        if os.path.exists(home_logo_path):
+            try:
+                home_logo = Image.open(home_logo_path)
+                home_logo = image_utils.crop_image(home_logo)
+                home_logo.thumbnail((12, 9))
+                x = 63 - home_logo.width
+                y = (10 - home_logo.height) // 2
+                self.images['full'].paste(home_logo, (x, max(0, y)))
+            except Exception as e:
+                pass
+
+        # 3. Draw Status (top center, yellow - y=1)
+        state_abbr = game['inning_state'][:3].upper() if game['inning_state'] else ""
+        inning = game['inning_num'] or ""
+        status_text = f"{state_abbr} {inning}"
+        w = get_text_3x5_width(status_text)
+        x = 32 - w // 2
+        draw_text_3x5(self.draw['full'], x, 1, status_text, self.COLOURS['yellow'])
+
+        # 4. Draw Scores (row 11..30)
+        away_score = game['away_score']
+        w = len(str(away_score)) * 8
+        x = 16 - w // 2
+        color_away = TEAM_COLORS.get(game['away_abrv'], self.COLOURS['white'])
+        if score_fade_color and game.get('scoring_team') in ['away', 'both']:
+            color_away = score_fade_color
+        elif self.settings['score_alerting']['score_coloured'] and game.get('away_team_scored'):
+            color_away = self.COLOURS['red_bright']
+        self.draw['full'].text((x, 10), str(away_score), font=self.FONTS['lrg_bold'], fill=color_away)
+
+        home_score = game['home_score']
+        w = len(str(home_score)) * 8
+        x = 48 - w // 2
+        color_home = TEAM_COLORS.get(game['home_abrv'], self.COLOURS['white'])
+        if score_fade_color and game.get('scoring_team') in ['home', 'both']:
+            color_home = score_fade_color
+        elif self.settings['score_alerting']['score_coloured'] and game.get('home_team_scored'):
+            color_home = self.COLOURS['red_bright']
+        self.draw['full'].text((x, 10), str(home_score), font=self.FONTS['lrg_bold'], fill=color_home)
+
+        # 5. Padded Bottom Banner (row 27..31) for secondary info
+        banner_text = ""
+        banner_color = self.COLOURS['white']
+        if alert_text_override:
+            banner_text = alert_text_override
+            banner_color = self.COLOURS['yellow_bright']
+        elif self.settings['display_outs_and_bases']:
+            outs = game.get('outs', 0)
+            banner_text = f"OUTS {outs}"
+            if outs == 3:
+                banner_color = self.COLOURS['red_bright']
+
+        if banner_text:
+            w = get_text_3x5_width(banner_text)
+            x = 32 - w // 2
+            draw_text_3x5(self.draw['full'], x, 27, banner_text, banner_color)
 
         if self.settings['display_outs_and_bases']:
-            # Add outs identifier to the centre image.
-            self.add_outs_to_image(game)
-
-            # Add runners on base identifier to the centre image.
             self.add_runners_on_base_to_image(game)
 
 
@@ -187,26 +249,26 @@ class MLBGamesScene(GamesScene):
 
         # If in the top or start of inning, up arrow.
         if game['inning_state'] in ['Top', 'Start']:
-            self.draw['centre'].line(((col_offset, 1), (col_offset, 6)), fill=self.COLOURS['white'])
-            self.draw['centre'].line(((col_offset, 1), (col_offset-2, 3)), fill=self.COLOURS['white'])
-            self.draw['centre'].line(((col_offset, 1), (col_offset+2, 3)), fill=self.COLOURS['white'])
+            self.draw['full'].line(((col_offset, 1), (col_offset, 6)), fill=self.COLOURS['white'])
+            self.draw['full'].line(((col_offset, 1), (col_offset-2, 3)), fill=self.COLOURS['white'])
+            self.draw['full'].line(((col_offset, 1), (col_offset+2, 3)), fill=self.COLOURS['white'])
 
         # If in bottom, down arrow.
         elif game['inning_state'] == 'Bottom':
-            self.draw['centre'].line(((col_offset, 7), (col_offset, 2)), fill=self.COLOURS['white'])
-            self.draw['centre'].line(((col_offset, 7), (col_offset-2, 5)), fill=self.COLOURS['white'])
-            self.draw['centre'].line(((col_offset, 7), (col_offset+2, 5)), fill=self.COLOURS['white'])
+            self.draw['full'].line(((col_offset, 7), (col_offset, 2)), fill=self.COLOURS['white'])
+            self.draw['full'].line(((col_offset, 7), (col_offset-2, 5)), fill=self.COLOURS['white'])
+            self.draw['full'].line(((col_offset, 7), (col_offset+2, 5)), fill=self.COLOURS['white'])
 
         # If at the end of the inning, add an 'E'.
         elif game['inning_state'] == 'End':
-            self.draw['centre'].text((col_offset-1, -1), 'E', font=self.FONTS['sm'], fill=self.COLOURS['white'])
+            self.draw['full'].text((col_offset-1, -1), 'E', font=self.FONTS['sm'], fill=self.COLOURS['white'])
 
         # Middle of inning, horizontal line.
         elif game['inning_state'] == 'Middle':
-            self.draw['centre'].line(((col_offset-2, 4), (col_offset+2, 4)), fill=self.COLOURS['white'])
+            self.draw['full'].line(((col_offset-2, 4), (col_offset+2, 4)), fill=self.COLOURS['white'])
         
         # Add inning number.
-        self.draw['centre'].text((col_offset+5, -1), str(game['inning_num']), font=self.FONTS['sm'], fill=self.COLOURS['white'])
+        self.draw['full'].text((col_offset+5, -1), str(game['inning_num']), font=self.FONTS['sm'], fill=self.COLOURS['white'])
 
 
     def add_final_playing_period_to_image(self, game):
@@ -219,7 +281,7 @@ class MLBGamesScene(GamesScene):
         # If the game ended in extra innings, add the final inning number to the image.
         if game['inning_num'] > 9:
             # We'll assume no games go longer than 99 innings... so only one layout needed.
-            self.draw['centre'].text((4, 8), str(game['inning_num']), font=self.FONTS['sm'], fill=self.COLOURS['white'])
+            self.draw['full'].text((4, 8), str(game['inning_num']), font=self.FONTS['sm'], fill=self.COLOURS['white'])
 
 
     def add_outs_to_image(self, game):
@@ -230,53 +292,37 @@ class MLBGamesScene(GamesScene):
         """
 
         # Draw grey boxes representing potential outs.
-        self.draw['centre'].rectangle(((2, 10), (4, 11)), fill=self.COLOURS['grey_light'])
-        self.draw['centre'].rectangle(((2, 13), (4, 14)), fill=self.COLOURS['grey_light'])
-        self.draw['centre'].rectangle(((2, 16), (4, 17)), fill=self.COLOURS['grey_light'])
+        self.draw['full'].rectangle(((2, 10), (4, 11)), fill=self.COLOURS['grey_light'])
+        self.draw['full'].rectangle(((2, 13), (4, 14)), fill=self.COLOURS['grey_light'])
+        self.draw['full'].rectangle(((2, 16), (4, 17)), fill=self.COLOURS['grey_light'])
 
         # Colour in boxes based on number of outs.
         if game['outs'] >= 1:
-            self.draw['centre'].rectangle(((2, 10), (4, 11)), fill=self.COLOURS['yellow'])
+            self.draw['full'].rectangle(((2, 10), (4, 11)), fill=self.COLOURS['yellow'])
         if game['outs'] >= 2:
-            self.draw['centre'].rectangle(((2, 13), (4, 14)), fill=self.COLOURS['yellow'])
+            self.draw['full'].rectangle(((2, 13), (4, 14)), fill=self.COLOURS['yellow'])
         if game['outs'] == 3:
-            self.draw['centre'].rectangle(((2, 16), (4, 17)), fill=self.COLOURS['yellow'])
+            self.draw['full'].rectangle(((2, 16), (4, 17)), fill=self.COLOURS['yellow'])
 
 
     def add_runners_on_base_to_image(self, game):
-        """ Adds runners on base to the image for in progress games.
-
-        Args:
-            game (dict): Dictionary with all details of a specific game.
+        """ Adds runners on base to the image for in progress games. Clean stadium-style rendering.
         """
+        # Draw the diamond in the center, just under the status text (y=6, x=32)
+        base_color = self.COLOURS['grey_dark']
+        active_color = self.COLOURS['yellow_bright']
         
-        # Draw a square rotated 45 degrees to represent each base. Each made up of four lines.
-        # 1st base.
-        self.draw['centre'].line(((15, 13), (17, 15)), fill=self.COLOURS['grey_light'])
-        self.draw['centre'].line(((17, 15), (15, 17)), fill=self.COLOURS['grey_light'])
-        self.draw['centre'].line(((15, 17), (13, 15)), fill=self.COLOURS['grey_light'])
-        self.draw['centre'].line(((13, 15), (15, 13)), fill=self.COLOURS['grey_light'])
-        # 2nd base.
-        self.draw['centre'].line(((12, 10), (14, 12)), fill=self.COLOURS['grey_light'])
-        self.draw['centre'].line(((14, 12), (12, 14)), fill=self.COLOURS['grey_light'])
-        self.draw['centre'].line(((12, 14), (10, 12)), fill=self.COLOURS['grey_light'])
-        self.draw['centre'].line(((10, 12), (12, 10)), fill=self.COLOURS['grey_light'])
-        # 3rd base.
-        self.draw['centre'].line(((9, 13), (11, 15)), fill=self.COLOURS['grey_light'])
-        self.draw['centre'].line(((11, 15), (9, 17)), fill=self.COLOURS['grey_light'])
-        self.draw['centre'].line(((9, 17), (7, 15)), fill=self.COLOURS['grey_light'])
-        self.draw['centre'].line(((7, 15), (9, 13)), fill=self.COLOURS['grey_light'])
+        # 1st base
+        c1 = active_color if game.get('runner_on_first') else base_color
+        self.draw['full'].rectangle([(34, 7), (35, 8)], fill=c1)
 
-        # Colour in based on if there's a runner on the base.
-        if game['runner_on_first']:
-            self.draw['centre'].line(((15, 14), (15, 16)), fill=self.COLOURS['yellow'])
-            self.draw['centre'].line(((14, 15), (16, 15)), fill=self.COLOURS['yellow'])
-        if game['runner_on_second']:
-            self.draw['centre'].line(((12, 11), (12, 13)), fill=self.COLOURS['yellow'])
-            self.draw['centre'].line(((11, 12), (13, 12)), fill=self.COLOURS['yellow'])
-        if game['runner_on_third']:
-            self.draw['centre'].line(((9, 14), (9, 16)), fill=self.COLOURS['yellow'])
-            self.draw['centre'].line(((8, 15), (10, 15)), fill=self.COLOURS['yellow'])
+        # 2nd base
+        c2 = active_color if game.get('runner_on_second') else base_color
+        self.draw['full'].rectangle([(31, 5), (32, 6)], fill=c2)
+
+        # 3rd base
+        c3 = active_color if game.get('runner_on_third') else base_color
+        self.draw['full'].rectangle([(28, 7), (29, 8)], fill=c3)
 
 
     def build_game_complete_image(self, game):
@@ -291,11 +337,11 @@ class MLBGamesScene(GamesScene):
         self.add_team_logos_to_image(game)
 
         # Add 'Final' to the centre image.
-        self.draw['centre'].text((0, -1), 'F', font=self.FONTS['sm'], fill=self.COLOURS['white'])
-        self.draw['centre'].text((4, 1), 'i', font=self.FONTS['sm'], fill=self.COLOURS['white'])
-        self.draw['centre'].text((8, 1), 'n', font=self.FONTS['sm'], fill=self.COLOURS['white'])
-        self.draw['centre'].text((13, 1), 'a', font=self.FONTS['sm'], fill=self.COLOURS['white'])
-        self.draw['centre'].text((16, 1), 'l', font=self.FONTS['sm'], fill=self.COLOURS['white'])
+        self.draw['full'].text((0, -1), 'F', font=self.FONTS['sm'], fill=self.COLOURS['white'])
+        self.draw['full'].text((4, 1), 'i', font=self.FONTS['sm'], fill=self.COLOURS['white'])
+        self.draw['full'].text((8, 1), 'n', font=self.FONTS['sm'], fill=self.COLOURS['white'])
+        self.draw['full'].text((13, 1), 'a', font=self.FONTS['sm'], fill=self.COLOURS['white'])
+        self.draw['full'].text((16, 1), 'l', font=self.FONTS['sm'], fill=self.COLOURS['white'])
 
         # If game ended in OT, etc. add that to the centre image.
         self.add_final_playing_period_to_image(game) # This exists in child classes.

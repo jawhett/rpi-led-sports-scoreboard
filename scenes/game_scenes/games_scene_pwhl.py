@@ -134,6 +134,194 @@ class PWHLGamesScene(GamesScene):
             self.transition_image(direction='out', image_already_combined=True)
 
 
+
+    def build_game_not_started_image(self, game, rotation_mode=0):
+        """ Builds image for when the game hasn't started yet.
+        """
+        from utils import image_utils
+        from PIL import Image
+        import os
+        from test_layout import get_text_3x5_width, draw_text_3x5
+
+        image_utils.clear_image(self.images['full'], self.draw['full'])
+
+        away_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["away_abrv"]}.png' if game["away_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["away_abrv"]}_{self.alt_logos[game["away_abrv"]]}.png'
+        if os.path.exists(away_logo_path):
+            try:
+                away_logo = Image.open(away_logo_path)
+                away_logo = image_utils.crop_image(away_logo)
+                away_logo.thumbnail((24, 16))
+                x = (32 - away_logo.width) // 2
+                y = (18 - away_logo.height) // 2
+                self.images['full'].paste(away_logo, (x, max(0, y)))
+            except Exception as e:
+                pass
+
+        home_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["home_abrv"]}.png' if game["home_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["home_abrv"]}_{self.alt_logos[game["home_abrv"]]}.png'
+        if os.path.exists(home_logo_path):
+            try:
+                home_logo = Image.open(home_logo_path)
+                home_logo = image_utils.crop_image(home_logo)
+                home_logo.thumbnail((24, 16))
+                x = 32 + (32 - home_logo.width) // 2
+                y = (18 - home_logo.height) // 2
+                self.images['full'].paste(home_logo, (x, max(0, y)))
+            except Exception as e:
+                pass
+
+        w = len(game['away_abrv']) * 5
+        x = 16 - w // 2
+        self.draw['full'].text((x, 18), game['away_abrv'], font=self.FONTS['sm_bold'], fill=self.COLOURS['white'])
+
+        w = len(game['home_abrv']) * 5
+        x = 48 - w // 2
+        self.draw['full'].text((x, 18), game['home_abrv'], font=self.FONTS['sm_bold'], fill=self.COLOURS['white'])
+
+        if game.get('start_time_tbd'):
+            time_str = "TBD"
+        else:
+            time_str = game['start_datetime_local'].strftime('%-I:%M%p').replace('AM', 'A').replace('PM', 'P')
+            date_str = game['start_datetime_local'].strftime('%-m/%-d')
+            time_str = f"{date_str} {time_str}"
+
+        w = get_text_3x5_width(time_str)
+        x = 32 - w // 2
+        draw_text_3x5(self.draw['full'], x, 27, time_str, self.COLOURS['white'])
+
+    def build_game_in_progress_image(self, game, score_fade_color=None, clock_seconds_override=None, rotation_mode=0, blink_colon=False, alert_text_override=None):
+        """ Builds a stadium-style scoreboard image for games in progress.
+        """
+        from utils import image_utils
+        from PIL import Image
+        import os
+        from utils.data_utils import TEAM_COLORS
+        from test_layout import get_text_3x5_width, draw_text_3x5
+
+        image_utils.clear_image(self.images['full'], self.draw['full'])
+
+        away_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["away_abrv"]}.png' if game["away_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["away_abrv"]}_{self.alt_logos[game["away_abrv"]]}.png'
+        if os.path.exists(away_logo_path):
+            try:
+                away_logo = Image.open(away_logo_path)
+                away_logo = image_utils.crop_image(away_logo)
+                away_logo.thumbnail((12, 9))
+                x = 1
+                y = (10 - away_logo.height) // 2
+                self.images['full'].paste(away_logo, (x, max(0, y)))
+            except Exception as e:
+                pass
+
+        home_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["home_abrv"]}.png' if game["home_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["home_abrv"]}_{self.alt_logos[game["home_abrv"]]}.png'
+        if os.path.exists(home_logo_path):
+            try:
+                home_logo = Image.open(home_logo_path)
+                home_logo = image_utils.crop_image(home_logo)
+                home_logo.thumbnail((12, 9))
+                x = 63 - home_logo.width
+                y = (10 - home_logo.height) // 2
+                self.images['full'].paste(home_logo, (x, max(0, y)))
+            except Exception as e:
+                pass
+
+        clock_str = game.get('period_time_remaining', '')
+        period_str = ""
+        if game.get('is_intermission'):
+            period_str = "INT"
+            clock_str = ""
+        elif game.get('period_num'):
+            period_str = f"P{game['period_num']}"
+
+        status_text = f"{period_str} {clock_str}".strip()
+        w = get_text_3x5_width(status_text)
+        x = 32 - w // 2
+        draw_text_3x5(self.draw['full'], x, 1, status_text, self.COLOURS['yellow'])
+
+        away_score = game['away_score']
+        w = len(str(away_score)) * 8
+        x = 16 - w // 2
+        color_away = TEAM_COLORS.get(game['away_abrv'], self.COLOURS['white'])
+        if score_fade_color and game.get('scoring_team') in ['away', 'both']:
+            color_away = score_fade_color
+        elif self.settings['score_alerting']['score_coloured'] and game.get('away_team_scored'):
+            color_away = self.COLOURS['red_bright']
+        self.draw['full'].text((x, 10), str(away_score), font=self.FONTS['lrg_bold'], fill=color_away)
+
+        home_score = game['home_score']
+        w = len(str(home_score)) * 8
+        x = 48 - w // 2
+        color_home = TEAM_COLORS.get(game['home_abrv'], self.COLOURS['white'])
+        if score_fade_color and game.get('scoring_team') in ['home', 'both']:
+            color_home = score_fade_color
+        elif self.settings['score_alerting']['score_coloured'] and game.get('home_team_scored'):
+            color_home = self.COLOURS['red_bright']
+        self.draw['full'].text((x, 10), str(home_score), font=self.FONTS['lrg_bold'], fill=color_home)
+
+        # Powerplay indicators (yellow bars under the score)
+        if game.get('powerplay_team'):
+            if game['powerplay_team'] == 'away':
+                self.draw['full'].line([(4, 25), (28, 25)], fill=self.COLOURS['yellow_bright'])
+            elif game['powerplay_team'] == 'home':
+                self.draw['full'].line([(36, 25), (60, 25)], fill=self.COLOURS['yellow_bright'])
+
+    def build_game_complete_image(self, game):
+        """ Builds image for when the game is complete.
+        """
+        from utils import image_utils
+        from PIL import Image
+        import os
+        from utils.data_utils import TEAM_COLORS
+        from test_layout import get_text_3x5_width, draw_text_3x5
+
+        image_utils.clear_image(self.images['full'], self.draw['full'])
+
+        away_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["away_abrv"]}.png' if game["away_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["away_abrv"]}_{self.alt_logos[game["away_abrv"]]}.png'
+        if os.path.exists(away_logo_path):
+            try:
+                away_logo = Image.open(away_logo_path)
+                away_logo = image_utils.crop_image(away_logo)
+                away_logo.thumbnail((12, 9))
+                x = 1
+                y = (10 - away_logo.height) // 2
+                self.images['full'].paste(away_logo, (x, max(0, y)))
+            except Exception as e:
+                pass
+
+        home_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["home_abrv"]}.png' if game["home_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["home_abrv"]}_{self.alt_logos[game["home_abrv"]]}.png'
+        if os.path.exists(home_logo_path):
+            try:
+                home_logo = Image.open(home_logo_path)
+                home_logo = image_utils.crop_image(home_logo)
+                home_logo.thumbnail((12, 9))
+                x = 63 - home_logo.width
+                y = (10 - home_logo.height) // 2
+                self.images['full'].paste(home_logo, (x, max(0, y)))
+            except Exception as e:
+                pass
+
+        status_text = "FINAL"
+        if game.get('period_str'):
+            status_text = f"FINAL/{game['period_str']}"
+        w = get_text_3x5_width(status_text)
+        x = 32 - w // 2
+        draw_text_3x5(self.draw['full'], x, 1, status_text, self.COLOURS['red_bright'])
+
+        away_score = game['away_score']
+        w = len(str(away_score)) * 8
+        x = 16 - w // 2
+        color_away = TEAM_COLORS.get(game['away_abrv'], self.COLOURS['white'])
+        if game['away_score'] < game['home_score']:
+            color_away = (color_away[0] // 3, color_away[1] // 3, color_away[2] // 3)
+        self.draw['full'].text((x, 10), str(away_score), font=self.FONTS['lrg_bold'], fill=color_away)
+
+        home_score = game['home_score']
+        w = len(str(home_score)) * 8
+        x = 48 - w // 2
+        color_home = TEAM_COLORS.get(game['home_abrv'], self.COLOURS['white'])
+        if game['home_score'] < game['away_score']:
+            color_home = (color_home[0] // 3, color_home[1] // 3, color_home[2] // 3)
+        self.draw['full'].text((x, 10), str(home_score), font=self.FONTS['lrg_bold'], fill=color_home)
+
+
     def add_playing_period_to_image(self, game):
         """ Adds current playing period to the centre image.
         This exists within the specific league class due to huge differences in playing periods between sports (periods, quarters, innings, etc.).
