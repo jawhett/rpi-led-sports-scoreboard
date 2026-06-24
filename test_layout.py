@@ -56,7 +56,7 @@ def compact_down_distance(text):
     if not text:
         return ""
     text = text.upper()
-    text = text.replace("GOAL", "G").replace(" & ", " ")
+    text = text.replace("GOAL", "G")
     return text
 
 def parse_odds(odds_str):
@@ -143,6 +143,7 @@ FONT_3X5 = {
     'Z': (7, 1, 2, 4, 7),
     '@': (5, 7, 5, 1, 7),
     '&': (2, 5, 2, 5, 3),
+    '!': (2, 2, 2, 0, 2),
 }
 
 def draw_text_3x5(draw, x, y, text, fill_color):
