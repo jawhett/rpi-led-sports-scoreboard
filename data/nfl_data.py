@@ -275,8 +275,8 @@ def get_standings():
                     'rank_method': 'Win Percentage',
                     'team_standings': []
                 } for div, div_abrv in [
-                    ('AFC East', 'East'), ('AFC North', 'North'), ('AFC South', 'South'), ('AFC West', 'West'),
-                    ('NFC East', 'East'), ('NFC North', 'North'), ('NFC South', 'South'), ('NFC West', 'West')
+                    ('AFC East', 'AFCE'), ('AFC North', 'AFCN'), ('AFC South', 'AFCS'), ('AFC West', 'AFCW'),
+                    ('NFC East', 'NFCE'), ('NFC North', 'NFCN'), ('NFC South', 'NFCS'), ('NFC West', 'NFCW')
                 ]
             }
         }
