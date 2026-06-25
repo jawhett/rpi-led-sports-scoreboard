@@ -97,6 +97,7 @@ def parse_odds(odds_str):
     return None
 
 FONT_3X5 = {
+    '!': (2, 2, 2, 0, 2),
     '0': (7, 5, 5, 5, 7), # 111, 101, 101, 101, 111
     '1': (2, 6, 2, 2, 7), # 010, 110, 010, 010, 111
     '2': (7, 1, 7, 4, 7), # 111, 001, 111, 100, 111
@@ -293,20 +294,16 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0):
             else:
                 banner_color = COLOURS['yellow_bright']
 
-        # Handle win probability logic specifically, separating it from text
+        # Handle win probability logic specifically
         if rotation_mode == 2 and league == 'NFL' and game.get('home_win_pct') is not None:
             pct = game['home_win_pct']
-            away_width = int((100 - pct) / 100.0 * 64)
-            away_col = TEAM_COLORS.get(game['away_abrv'], COLOURS['white'])
-            home_col = TEAM_COLORS.get(game['home_abrv'], COLOURS['white'])
-
-            if away_width > 0:
-                draw.line([(0, 31), (away_width - 1, 31)], fill=away_col)
-            if away_width < 64:
-                draw.line([(away_width, 31), (63, 31)], fill=home_col)
+            fav_abrv = game['home_abrv'] if pct >= 50 else game['away_abrv']
+            fav_pct = int(pct if pct >= 50 else (100 - pct))
+            banner_text = f"{fav_abrv} WIN PROB {fav_pct}%"
+            banner_color = COLOURS['green_bright']
 
         # Center banner text using our 3x5 font helper (drawn at y=27 to create 1px padding on row 26)
-        elif banner_text:
+        if banner_text:
             w = get_text_3x5_width(banner_text)
             x = 32 - w // 2
             draw_text_3x5(draw, x, 27, banner_text, banner_color)
