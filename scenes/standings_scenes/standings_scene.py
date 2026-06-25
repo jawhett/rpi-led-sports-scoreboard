@@ -79,7 +79,6 @@ class StandingsScene(Scene):
         
         # First, add the background and text to the non-rotated image.
         tmp_draw.rectangle([(0, 0), (31, 7)], fill=self.COLOURS['white'])
-        tmp_draw.text((1, 0), self.LEAGUE, font=self.FONTS['sm'], fill=self.COLOURS['black'])
 
         # If standing subdivision ('EC', 'ALE', etc.) provided, determine the correct location based on length and add those as well.
         # If nothing provided, will just display the league name.
@@ -87,6 +86,14 @@ class StandingsScene(Scene):
             sub_len = len(standing_details['subdivision_abrv'])
             sub_col = 32 - 5 * sub_len
             tmp_draw.text((sub_col, 0), standing_details['subdivision_abrv'], font=self.FONTS['sm'], fill=self.COLOURS['black'])
+
+            # Draw LEAGUE only if it doesn't overlap
+            league_len = len(self.LEAGUE)
+            league_width = 5 * league_len
+            if 1 + league_width < sub_col:
+                tmp_draw.text((1, 0), self.LEAGUE, font=self.FONTS['sm'], fill=self.COLOURS['black'])
+        else:
+            tmp_draw.text((1, 0), self.LEAGUE, font=self.FONTS['sm'], fill=self.COLOURS['black'])
 
         # If enabled in config.yaml, add a highlight colour to the sidebar. Helps differentiate between different leagues.
         if self.settings.get('colour_sidebar'):
