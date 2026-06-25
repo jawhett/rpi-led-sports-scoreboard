@@ -57,6 +57,7 @@ def parse_odds(odds_str):
 
 
 FONT_3X5 = {
+    '!': (2, 2, 2, 0, 2),
     '0': (7, 5, 5, 5, 7),
     '1': (2, 6, 2, 2, 7),
     '2': (7, 1, 7, 4, 7),
@@ -451,14 +452,12 @@ class NFLGamesScene(GamesScene):
 
         if not alert_text_override and rotation_mode == 2 and self.LEAGUE == 'NFL' and game.get('home_win_pct') is not None:
             pct = game['home_win_pct']
-            away_width = int((100 - pct) / 100.0 * 64)
-            away_col = TEAM_COLORS.get(game['away_abrv'], self.COLOURS['white'])
-            home_col = TEAM_COLORS.get(game['home_abrv'], self.COLOURS['white'])
-            if away_width > 0:
-                self.draw['full'].line([(0, 31), (away_width - 1, 31)], fill=away_col)
-            if away_width < 64:
-                self.draw['full'].line([(away_width, 31), (63, 31)], fill=home_col)
-        elif banner_text:
+            fav_abrv = game['home_abrv'] if pct >= 50 else game['away_abrv']
+            fav_pct = int(pct if pct >= 50 else (100 - pct))
+            banner_text = f"{fav_abrv} WIN PROB {fav_pct}%"
+            banner_color = self.COLOURS['green_bright']
+
+        if banner_text:
             w = get_text_3x5_width(banner_text)
             x = 32 - w // 2
             draw_text_3x5(self.draw['full'], x, 27, banner_text, banner_color)
