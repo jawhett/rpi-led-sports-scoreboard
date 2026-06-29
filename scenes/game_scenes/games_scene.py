@@ -1,3 +1,4 @@
+import os
 from ..scene import Scene
 from setup.matrix_setup import matrix, matrix_options
 from utils import image_utils
@@ -29,6 +30,80 @@ class GamesScene(Scene):
         self.draw = {
             'full':     ImageDraw.Draw(self.images['full'])
         }
+
+    def draw_team_logo_or_name(self, game, home_or_away, rotation_mode):
+        import os
+        from PIL import Image
+        from utils import image_utils
+        abrv = game[f"{home_or_away}_abrv"]
+        
+        if home_or_away == 'away':
+            x_min, x_max = 1, 12
+        else:
+            x_min, x_max = 51, 62
+            
+        if rotation_mode % 2 == 1:
+            text_str = abrv
+            bbox = self.FONTS['sm_bold'].getbbox(text_str)
+            text_w = bbox[2] - bbox[0]
+            text_h = bbox[3] - bbox[1]
+            x = x_min + ((x_max - x_min + 1) - text_w) // 2
+            y = 1 + (9 - text_h) // 2
+            self.draw['full'].text((x, y), text_str, font=self.FONTS['sm_bold'], fill=self.COLOURS['white'])
+        else:
+            logo_path = f'assets/images/{self.LEAGUE}/teams/{abrv}.png' if abrv not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{abrv}_{self.alt_logos[abrv]}.png'
+            if os.path.exists(logo_path):
+                try:
+                    logo = Image.open(logo_path)
+                    logo = image_utils.crop_image(logo)
+                    logo.thumbnail((12, 9))
+                    x = x_min if home_or_away == 'away' else 63 - logo.width
+                    y = (10 - logo.height) // 2
+                    self.images['full'].paste(logo, (x, max(0, y)))
+                except Exception as e:
+                    pass
+
+    def filter_games(self, games):
+        if not games:
+            return games
+        if getattr(self, 'display_only_games', None) is not None:
+            return [g for g in games if g['game_id'] in self.display_only_games]
+        elif getattr(self, 'display_only_live', False):
+            filtered = []
+            import datetime
+            now = datetime.datetime.now().astimezone()
+            league = getattr(self, 'LEAGUE', 'NBA')
+            for g in games:
+                # Is live?
+                is_live = False
+                if league == 'MLB':
+                    is_live = g.get('status') in ['Live', 'Delayed']
+                elif league == 'PWHL':
+                    is_live = str(g.get('status')) == '2'
+                else:
+                    is_live = g.get('status_code') == 2
+                
+                if is_live:
+                    filtered.append(g)
+                    continue
+                    
+                # Is recently completed?
+                is_final = False
+                if league == 'MLB':
+                    is_final = g.get('status') == 'Final'
+                elif league == 'PWHL':
+                    is_final = str(g.get('status')) == '3'
+                else:
+                    is_final = g.get('status_code') == 3
+                    
+                if is_final:
+                    start_time = g.get('start_datetime_local')
+                    if start_time:
+                        elapsed_hours = (now - start_time).total_seconds() / 3600.0
+                        if 0 < elapsed_hours < 5.0:
+                            filtered.append(g)
+            return filtered
+        return games
 
     def parse_clock_str(self, clock_str):
         if not clock_str:

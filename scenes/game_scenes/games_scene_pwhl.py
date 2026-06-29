@@ -90,6 +90,7 @@ class PWHLGamesScene(GamesScene):
 
 
     def display_game_images(self, games, date=None):
+        games = self.filter_games(games)
         """ Builds and displays images on the matrix for each game in games.
 
         Args:
@@ -110,7 +111,25 @@ class PWHLGamesScene(GamesScene):
 
                 # Otherwise, the game is in progress. Build the game in progress screen.
                 elif game['status'] in ['2']:
-                    self.build_game_in_progress_image(game)
+                    duration = max(12.0, self.settings['game_display_duration'] * 4)
+                    elapsed = 0.0
+                    step = 1.0
+                    num_modes = 2
+                    
+                    self.build_game_in_progress_image(game, rotation_mode=0)
+                    self.transition_image(direction='in')
+                    
+                    while elapsed < duration:
+                        rotation_mode = int(elapsed // 2) % num_modes
+                        self.build_game_in_progress_image(game, rotation_mode=rotation_mode)
+                        matrix.SetImage(self.images['full'])
+                        
+                        sleep_time = min(step, duration - elapsed)
+                        sleep(sleep_time)
+                        elapsed += sleep_time
+                        
+                    self.transition_image(direction='out')
+                    continue
                 else:
                     print(f"Unexpected gameState encountered from API: {game['status']}.")
 

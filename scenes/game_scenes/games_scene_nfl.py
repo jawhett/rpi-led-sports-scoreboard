@@ -231,6 +231,7 @@ class NFLGamesScene(GamesScene):
                                                                                                
 
     def display_game_images(self, games, date=None):
+        games = self.filter_games(games)
         """ Builds and displays images on the matrix for each game in games.
 
         Args:
@@ -243,7 +244,7 @@ class NFLGamesScene(GamesScene):
             for game in games:
                 # If the game has yet to begin, build the game not started image.
                 if game['status_code'] == 1:
-                    duration = self.settings['game_display_duration']
+                    duration = max(12.0, self.settings['game_display_duration'] * 4)
                     elapsed = 0.0
                     step = 1.0
                     
@@ -286,11 +287,13 @@ class NFLGamesScene(GamesScene):
                         if game['scoring_team']:
                             self.fade_score_change(game, clock_seconds=clock_seconds)
                     
-                    duration = self.settings['game_display_duration']
+                    duration = max(12.0, self.settings['game_display_duration'] * 4)
                     elapsed = 0.0
                     step = 1.0
                     
-                    num_modes = 3 if self.LEAGUE == 'NFL' else 2
+                    has_odds = bool(game.get('odds_str'))
+                    has_win_pct = game.get('home_win_pct') is not None
+                    num_modes = 3 if (has_odds and has_win_pct) else (2 if (has_odds or has_win_pct) else 1)
                     
                     while elapsed < duration:
                         rotation_mode = int(elapsed // 2) % num_modes
@@ -328,32 +331,9 @@ class NFLGamesScene(GamesScene):
         """
         image_utils.clear_image(self.images['full'], self.draw['full'])
         
-        # 1. Draw Away Team Logo (reduced to 12x9 to prevent overlap with status)
-        away_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["away_abrv"]}.png' if game["away_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["away_abrv"]}_{self.alt_logos[game["away_abrv"]]}.png'
-        if os.path.exists(away_logo_path):
-            try:
-                away_logo = Image.open(away_logo_path)
-                away_logo = image_utils.crop_image(away_logo)
-                away_logo.thumbnail((12, 9))
-                x = 1
-                y = (10 - away_logo.height) // 2
-                self.images['full'].paste(away_logo, (x, max(0, y)))
-            except Exception as e:
-                print(f"Error loading logo {away_logo_path}: {e}")
-
-        # 2. Draw Home Team Logo (reduced to 12x9 to prevent overlap with status)
-        home_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["home_abrv"]}.png' if game["home_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["home_abrv"]}_{self.alt_logos[game["home_abrv"]]}.png'
-        if os.path.exists(home_logo_path):
-            try:
-                home_logo = Image.open(home_logo_path)
-                home_logo = image_utils.crop_image(home_logo)
-                home_logo.thumbnail((12, 9))
-                x = 63 - home_logo.width
-                y = (10 - home_logo.height) // 2
-                self.images['full'].paste(home_logo, (x, max(0, y)))
-            except Exception as e:
-                print(f"Error loading logo {home_logo_path}: {e}")
- 
+        # 1 & 2. Draw Team Logos or Names (alternating)
+        self.draw_team_logo_or_name(game, 'away', rotation_mode)
+        self.draw_team_logo_or_name(game, 'home', rotation_mode)
         # 3. Draw Clock (top center, yellow - y=1)
         clock_str = ""
         period_str = ""

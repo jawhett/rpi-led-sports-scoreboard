@@ -127,6 +127,67 @@ def get_text_3x5_width(text):
 
 
 class NBAWNBAGamesScene(GamesScene):
+    def add_team_logos_to_image(self, game, rotation_mode=0):
+        """ Adds home and away team logos or text abbreviations to side panels.
+        """
+        import math
+        from PIL import Image, ImageDraw
+        from utils import image_utils
+
+        # Clear left and right images
+        self.images['left'] = Image.new('RGB', (40, 30))
+        self.images['right'] = Image.new('RGB', (40, 30))
+        self.draw['left'] = ImageDraw.Draw(self.images['left'])
+        self.draw['right'] = ImageDraw.Draw(self.images['right'])
+
+        # Away team (left panel)
+        if rotation_mode == 1:
+            text = game['away_abrv']
+            bbox = self.draw['left'].textbbox((0, 0), text, font=self.fonts['big'])
+            w = bbox[2] - bbox[0]
+            h = bbox[3] - bbox[1]
+            x = math.floor((22 - w) / 2)
+            y = math.floor((self.images['left'].height - h) / 2) - 2
+            self.draw['left'].text((x, y), text, fill=self.COLOURS['white'], font=self.fonts['big'])
+        else:
+            away_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["away_abrv"]}.png' if game["away_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["away_abrv"]}_{self.alt_logos[game["away_abrv"]]}.png'
+            if os.path.exists(away_logo_path):
+                try:
+                    away_logo = Image.open(away_logo_path)
+                    away_logo = image_utils.crop_image(away_logo)
+                    away_logo.thumbnail((21, self.images['left'].height))
+                    away_placement_in_image = (
+                        self.images['left'].width - away_logo.width if away_logo.width > 21 else 19 + math.ceil((21 - away_logo.width) / 2),
+                        math.floor((self.images['left'].height - away_logo.height) / 2)
+                    )
+                    self.images['left'].paste(away_logo, away_placement_in_image)
+                except Exception:
+                    pass
+
+        # Home team (right panel)
+        if rotation_mode == 1:
+            text = game['home_abrv']
+            bbox = self.draw['right'].textbbox((0, 0), text, font=self.fonts['big'])
+            w = bbox[2] - bbox[0]
+            h = bbox[3] - bbox[1]
+            x = math.floor((22 - w) / 2)
+            y = math.floor((self.images['right'].height - h) / 2) - 2
+            self.draw['right'].text((x, y), text, fill=self.COLOURS['white'], font=self.fonts['big'])
+        else:
+            home_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["home_abrv"]}.png' if game["home_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["home_abrv"]}_{self.alt_logos[game["home_abrv"]]}.png'
+            if os.path.exists(home_logo_path):
+                try:
+                    home_logo = Image.open(home_logo_path)
+                    home_logo = image_utils.crop_image(home_logo)
+                    home_logo.thumbnail((21, self.images['right'].height))
+                    home_placement_in_image = (
+                        0 if home_logo.width > 21 else math.floor((21 - home_logo.width) / 2),
+                        math.floor((self.images['right'].height - home_logo.height) / 2)
+                    )
+                    self.images['right'].paste(home_logo, home_placement_in_image)
+                except Exception:
+                    pass
+
     """ Game scene for the NBA/WNBA. Contains functionality to pull data from NBA/WNBA API, parse, and build+display specific images based on the result.
     This class extends the general Scene and GameScene classes. An object of this class type is created when the scoreboard is started.
     """
@@ -176,6 +237,11 @@ class NBAWNBAGamesScene(GamesScene):
                 if recent_games:
                     current_games = recent_games
                     break
+
+        from main import inject_espn_odds
+        if display_yesterday and hasattr(self, 'data_previous_day'):
+            inject_espn_odds(self.data_previous_day['games'], 'basketball', self.LEAGUE.lower())
+        inject_espn_odds(current_games, 'basketball', self.LEAGUE.lower())
 
         self.data = {
             'games_previous_pull': self.data['games'] if hasattr(self, 'data') else None,
@@ -234,6 +300,7 @@ class NBAWNBAGamesScene(GamesScene):
                                                                                                
 
     def display_game_images(self, games, date=None):
+        games = self.filter_games(games)
         """ Builds and displays images on the matrix for each game in games.
 
         Args:
@@ -246,7 +313,7 @@ class NBAWNBAGamesScene(GamesScene):
             for game in games:
                 # If the game has yet to begin, build the game not started image.
                 if game['status_code'] == 1:
-                    duration = self.settings['game_display_duration']
+                    duration = max(12.0, self.settings['game_display_duration'] * 4)
                     elapsed = 0.0
                     step = 1.0
                     
@@ -277,6 +344,9 @@ class NBAWNBAGamesScene(GamesScene):
 
                 # Otherwise, the game is in progress. Build the game in progress screen.
                 elif game['status_code'] == 2:
+                    # Write debug log
+                    with open('/home/nba/rpi-led-sports-scoreboard/wnba_debug.txt', 'a') as debug_f:
+                        debug_f.write(f"WNBA_LIVE_DEBUG: game={game.get('away_abrv')}@{game.get('home_abrv')} odds_str={game.get('odds_str')} fouls={game.get('away_fouls')}-{game.get('home_fouls')} has_started={game.get('has_started')}\n")
                     clock_str = game['period_time_remaining']
                     clock_seconds = None
                     if clock_str and not game['is_halftime']:
@@ -289,11 +359,12 @@ class NBAWNBAGamesScene(GamesScene):
                         if game['scoring_team']:
                             self.fade_score_change(game, clock_seconds=clock_seconds)
                     
-                    duration = self.settings['game_display_duration']
+                    duration = max(12.0, self.settings['game_display_duration'] * 4)
                     elapsed = 0.0
                     step = 1.0
                     
-                    num_modes = 3 if self.LEAGUE == 'NFL' else 2
+                    has_odds = bool(game.get('odds_str'))
+                    num_modes = 2 if has_odds else 1
                     
                     while elapsed < duration:
                         rotation_mode = int(elapsed // 2) % num_modes
@@ -331,32 +402,9 @@ class NBAWNBAGamesScene(GamesScene):
         """
         image_utils.clear_image(self.images['full'], self.draw['full'])
         
-        # 1. Draw Away Team Logo (reduced to 12x9 to prevent overlap with status)
-        away_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["away_abrv"]}.png' if game["away_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["away_abrv"]}_{self.alt_logos[game["away_abrv"]]}.png'
-        if os.path.exists(away_logo_path):
-            try:
-                away_logo = Image.open(away_logo_path)
-                away_logo = image_utils.crop_image(away_logo)
-                away_logo.thumbnail((12, 9))
-                x = 1  # Leave 1px padding from the outer edge (where ticks are drawn)
-                y = (10 - away_logo.height) // 2
-                self.images['full'].paste(away_logo, (x, max(0, y)))
-            except Exception as e:
-                print(f"Error loading logo {away_logo_path}: {e}")
-
-        # 2. Draw Home Team Logo (reduced to 12x9 to prevent overlap with status)
-        home_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["home_abrv"]}.png' if game["home_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["home_abrv"]}_{self.alt_logos[game["home_abrv"]]}.png'
-        if os.path.exists(home_logo_path):
-            try:
-                home_logo = Image.open(home_logo_path)
-                home_logo = image_utils.crop_image(home_logo)
-                home_logo.thumbnail((12, 9))
-                x = 63 - home_logo.width  # Leave 1px padding from outer edge
-                y = (10 - home_logo.height) // 2
-                self.images['full'].paste(home_logo, (x, max(0, y)))
-            except Exception as e:
-                print(f"Error loading logo {home_logo_path}: {e}")
- 
+        # 1 & 2. Draw Team Logos or Names (alternating)
+        self.draw_team_logo_or_name(game, 'away', rotation_mode)
+        self.draw_team_logo_or_name(game, 'home', rotation_mode)
         # 3. Draw Clock (top center, yellow - y=1)
         clock_str = ""
         period_str = ""
@@ -446,7 +494,14 @@ class NBAWNBAGamesScene(GamesScene):
         banner_text = ""
         banner_color = self.COLOURS['white']
 
-        if alert_text_override:
+        parsed_odds = parse_odds(game.get('odds_str'))
+        if not alert_text_override and rotation_mode == 1 and parsed_odds:
+            odds_str = f"{parsed_odds['fav_team']} {parsed_odds['spread']}"
+            if parsed_odds['ou']:
+                odds_str = f"{odds_str} U{parsed_odds['ou']}"
+            banner_text = odds_str
+            banner_color = self.COLOURS['yellow_bright']
+        elif alert_text_override:
             banner_text = alert_text_override
             banner_color = self.COLOURS['yellow_bright']
         elif self.LEAGUE == 'NFL' and game.get('down_distance_text'):
