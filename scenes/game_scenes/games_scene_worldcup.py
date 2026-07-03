@@ -51,15 +51,21 @@ class WorldCupGamesScene(GamesScene):
                 if game['status_code'] != 1:
                     matched_game = next(filter(lambda x: x['game_id'] == game['game_id'], self.data['games_previous_pull']), None)
                     if matched_game and matched_game['status_code'] != 1:
-                        game['away_team_scored'] = True if game['away_score'] > matched_game['away_score'] else False
-                        game['home_team_scored'] = True if game['home_score'] > matched_game['home_score'] else False
+                        # Find if goals count increased
+                        prev_goals = len([e for e in matched_game.get('events', []) if e['type'] == 'goal'])
+                        curr_goals = len([e for e in game.get('events', []) if e['type'] == 'goal'])
                         
-                        if game['away_team_scored'] and game['home_team_scored']:
-                            game['scoring_team'] = 'both'
-                        elif game['away_team_scored']:
-                            game['scoring_team'] = 'away'
-                        elif game['home_team_scored']:
-                            game['scoring_team'] = 'home'
+                        if curr_goals > prev_goals:
+                            # Something was scored. Check scores
+                            game['away_team_scored'] = True if game['away_score'] > matched_game['away_score'] else False
+                            game['home_team_scored'] = True if game['home_score'] > matched_game['home_score'] else False
+                            
+                            if game['away_team_scored'] and game['home_team_scored']:
+                                game['scoring_team'] = 'both'
+                            elif game['away_team_scored']:
+                                game['scoring_team'] = 'away'
+                            elif game['home_team_scored']:
+                                game['scoring_team'] = 'home'
 
         # Display splash (if enabled) for current day.
         if self.settings['splash']['display_splash']:
@@ -85,8 +91,8 @@ class WorldCupGamesScene(GamesScene):
                     duration = max(12.0, self.settings['game_display_duration'] * 4)
                     elapsed = 0.0
                     step = 1.0
-                    goals = game.get('goals', [])
-                    num_modes = max(2, len(goals))
+                    match_events = game.get('events', [])
+                    num_modes = max(2, len(match_events))
                     
                     self.build_game_complete_image(game, rotation_mode=0)
                     self.transition_image(direction='in')
@@ -106,8 +112,8 @@ class WorldCupGamesScene(GamesScene):
                     duration = max(12.0, self.settings['game_display_duration'] * 4)
                     elapsed = 0.0
                     step = 1.0
-                    goals = game.get('goals', [])
-                    num_modes = max(2, len(goals))
+                    match_events = game.get('events', [])
+                    num_modes = max(2, len(match_events))
                     
                     self.build_game_in_progress_image(game, rotation_mode=0)
                     self.transition_image(direction='in')
@@ -179,9 +185,11 @@ class WorldCupGamesScene(GamesScene):
         x = 48 - w // 2
         self.draw['full'].text((x, 18), game['home_abrv'], font=self.FONTS['sm_bold'], fill=self.COLOURS['white'])
 
+        # Show round prefix next to TODAY/TOMORROW/Date if it exists
         time_str = game['start_datetime_local'].strftime('%-I:%M%p').replace('AM', 'A').replace('PM', 'P')
         date_str = game['start_datetime_local'].strftime('%-m/%-d')
-        time_str = f"{date_str} {time_str}"
+        stage_str = f"{game.get('stage', '')} " if game.get('stage') else ""
+        time_str = f"{stage_str}{date_str} {time_str}".strip()
 
         w = get_text_3x5_width(time_str)
         x = 32 - w // 2
@@ -229,7 +237,8 @@ class WorldCupGamesScene(GamesScene):
         elif game.get('period_num') > 2:
             period_str = "OT"
 
-        status_text = f"{period_str} {clock_str}".strip()
+        stage_str = f"{game.get('stage', '')} " if game.get('stage') else ""
+        status_text = f"{stage_str}{period_str} {clock_str}".strip()
         w = get_text_3x5_width(status_text)
         x = 32 - w // 2
         draw_text_3x5(self.draw['full'], x, 1, status_text, self.COLOURS['yellow'])
@@ -254,16 +263,23 @@ class WorldCupGamesScene(GamesScene):
             color_home = self.COLOURS['red_bright']
         self.draw['full'].text((x, 10), str(home_score), font=self.FONTS['lrg_bold'], fill=color_home)
 
-        # Cycle goal scorers at the bottom
-        goals = game.get('goals', [])
-        if goals:
-            goal_idx = rotation_mode % len(goals)
-            g = goals[goal_idx]
-            team_abrv = game['away_abrv'] if g['team'] == 'away' else game['home_abrv']
-            goal_text = f"{team_abrv}: {g['scorer']} {g['clock']}"
-            w = get_text_3x5_width(goal_text)
+        # Cycle events (goals/red cards) at the bottom
+        match_events = game.get('events', [])
+        if match_events:
+            idx = rotation_mode % len(match_events)
+            ev = match_events[idx]
+            team_abrv = game['away_abrv'] if ev['team'] == 'away' else game['home_abrv']
+            
+            if ev['type'] == 'goal':
+                event_text = f"{team_abrv}: {ev['name']} {ev['clock']}"
+                color = self.COLOURS['white']
+            else:
+                event_text = f"RC-{team_abrv}: {ev['name']} {ev['clock']}"
+                color = self.COLOURS['red_bright']
+                
+            w = get_text_3x5_width(event_text)
             x = 32 - w // 2
-            draw_text_3x5(self.draw['full'], max(0, x), 27, goal_text, self.COLOURS['white'])
+            draw_text_3x5(self.draw['full'], max(0, x), 27, event_text, color)
 
     def build_game_complete_image(self, game, rotation_mode=0):
         from utils import image_utils
@@ -302,6 +318,9 @@ class WorldCupGamesScene(GamesScene):
         if game.get('away_shootout') is not None and game.get('home_shootout') is not None:
             status_text = f"PEN {game['away_shootout']}-{game['home_shootout']}"
             
+        stage_str = f"{game.get('stage', '')} " if game.get('stage') else ""
+        status_text = f"{stage_str}{status_text}".strip()
+            
         w = get_text_3x5_width(status_text)
         x = 32 - w // 2
         draw_text_3x5(self.draw['full'], x, 1, status_text, self.COLOURS['red_bright'])
@@ -322,13 +341,20 @@ class WorldCupGamesScene(GamesScene):
             color_home = (color_home[0] // 3, color_home[1] // 3, color_home[2] // 3)
         self.draw['full'].text((x, 10), str(home_score), font=self.FONTS['lrg_bold'], fill=color_home)
 
-        # Cycle goal scorers at the bottom
-        goals = game.get('goals', [])
-        if goals:
-            goal_idx = rotation_mode % len(goals)
-            g = goals[goal_idx]
-            team_abrv = game['away_abrv'] if g['team'] == 'away' else game['home_abrv']
-            goal_text = f"{team_abrv}: {g['scorer']} {g['clock']}"
-            w = get_text_3x5_width(goal_text)
+        # Cycle events (goals/red cards) at the bottom
+        match_events = game.get('events', [])
+        if match_events:
+            idx = rotation_mode % len(match_events)
+            ev = match_events[idx]
+            team_abrv = game['away_abrv'] if ev['team'] == 'away' else game['home_abrv']
+            
+            if ev['type'] == 'goal':
+                event_text = f"{team_abrv}: {ev['name']} {ev['clock']}"
+                color = self.COLOURS['white']
+            else:
+                event_text = f"RC-{team_abrv}: {ev['name']} {ev['clock']}"
+                color = self.COLOURS['red_bright']
+                
+            w = get_text_3x5_width(event_text)
             x = 32 - w // 2
-            draw_text_3x5(self.draw['full'], max(0, x), 27, goal_text, self.COLOURS['white'])
+            draw_text_3x5(self.draw['full'], max(0, x), 27, event_text, color)

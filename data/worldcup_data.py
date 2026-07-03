@@ -73,28 +73,50 @@ def get_games(date):
                 if 'AET' in status_text or 'PEN' in status_text:
                     period_type = 'OT'
                 
-                # Parse scorers
-                goals = []
+                # Parse Stage (GRP, R32, R16, QF, SF, FIN)
+                stage = ''
+                season_slug = event.get('season', {}).get('slug', '').lower()
+                if 'round-of-32' in season_slug:
+                    stage = 'R32'
+                elif 'round-of-16' in season_slug:
+                    stage = 'R16'
+                elif 'quarter' in season_slug:
+                    stage = 'QF'
+                elif 'semi' in season_slug:
+                    stage = 'SF'
+                elif 'third' in season_slug:
+                    stage = '3RD'
+                elif 'final' in season_slug:
+                    stage = 'FIN'
+                elif 'group' in season_slug:
+                    stage = 'GRP'
+
+                # Parse events (Goals and Red Cards)
+                match_events = []
                 home_id = str(home_team['team']['id'])
                 away_id = str(away_team['team']['id'])
                 for d in comp.get('details', []):
-                    if d.get('scoringPlay') or 'Goal' in d.get('type', {}).get('text', ''):
+                    is_goal = d.get('scoringPlay') or 'Goal' in d.get('type', {}).get('text', '')
+                    is_red = d.get('redCard') or 'Red Card' in d.get('type', {}).get('text', '')
+                    
+                    if is_goal or is_red:
                         scorer = "Unknown"
                         if d.get('athletesInvolved'):
                             scorer = d['athletesInvolved'][0].get('shortName', 'Unknown')
                         clock = d.get('clock', {}).get('displayValue', '')
                         team_id = str(d.get('team', {}).get('id'))
                         
-                        goal_team = None
+                        event_team = None
                         if team_id == home_id:
-                            goal_team = 'home'
+                            event_team = 'home'
                         elif team_id == away_id:
-                            goal_team = 'away'
+                            event_team = 'away'
                             
-                        goals.append({
-                            'scorer': scorer,
+                        match_events.append({
+                            'name': scorer,
                             'clock': clock,
-                            'team': goal_team
+                            'team': event_team,
+                            'type': 'goal' if is_goal else 'red_card'
                         })
                 
                 # Try downloading team logos if they don't exist
@@ -145,7 +167,8 @@ def get_games(date):
                     'period_num': period_num,
                     'period_type': period_type,
                     'period_time_remaining': status_obj.get('displayClock', ''),
-                    'goals': goals,
+                    'stage': stage,
+                    'events': match_events,
                     'home_team_scored': False,
                     'away_team_scored': False,
                     'scoring_team': None
