@@ -83,8 +83,24 @@ class WorldCupGamesScene(GamesScene):
         if games:
             for game in games:
                 if game['status_code'] == 1:
-                    self.build_game_not_started_image(game)
+                    duration = max(12.0, self.settings['game_display_duration'] * 4)
+                    elapsed = 0.0
+                    step = 1.0
+                    
+                    self.build_game_not_started_image(game, rotation_mode=0)
                     self.transition_image(direction='in')
+                    
+                    while elapsed < duration:
+                        rotation_mode = int(elapsed // 2)
+                        self.build_game_not_started_image(game, rotation_mode=rotation_mode)
+                        matrix.SetImage(self.images['full'])
+                        
+                        sleep_time = min(step, duration - elapsed)
+                        sleep(sleep_time)
+                        elapsed += sleep_time
+                        
+                    self.transition_image(direction='out')
+                    continue
                 elif game['status_code'] == 3:
                     duration = max(12.0, self.settings['game_display_duration'] * 4)
                     elapsed = 0.0
@@ -183,17 +199,27 @@ class WorldCupGamesScene(GamesScene):
         x = 48 - w // 2
         self.draw['full'].text((x, 18), game['home_abrv'], font=self.FONTS['sm_bold'], fill=self.COLOURS['white'])
 
-        # Alternate between Date/Time and the tournament stage at the bottom
-        if rotation_mode % 2 == 1 and game.get('stage'):
-            time_str = f"STAGE {game['stage']}"
-        else:
-            time_str = game['start_datetime_local'].strftime('%-I:%M%p').replace('AM', 'A').replace('PM', 'P')
-            date_str = game['start_datetime_local'].strftime('%-m/%-d')
-            time_str = f"{date_str} {time_str}"
+        # Cycle Date/Time, Round Stage, and Location
+        modes = []
+        time_str = game['start_datetime_local'].strftime('%-I:%M%p').replace('AM', 'A').replace('PM', 'P')
+        date_str = game['start_datetime_local'].strftime('%-m/%-d')
+        modes.append(f"{date_str} {time_str}")
+        
+        if game.get('stage'):
+            modes.append(f"STAGE {game['stage']}")
+            
+        loc = game.get('venue_name') or game.get('venue_city')
+        if loc:
+            # Clean up and crop if too long
+            loc_str = loc.upper()
+            if len(loc_str) > 16:
+                loc_str = loc_str[:15] + "."
+            modes.append(loc_str)
 
-        w = get_text_3x5_width(time_str)
+        display_str = modes[rotation_mode % len(modes)]
+        w = get_text_3x5_width(display_str)
         x = 32 - w // 2
-        draw_text_3x5(self.draw['full'], x, 27, time_str, self.COLOURS['white'])
+        draw_text_3x5(self.draw['full'], max(0, x), 27, display_str, self.COLOURS['white'])
 
     def build_game_in_progress_image(self, game, score_fade_color=None, clock_seconds_override=None, rotation_mode=0, blink_colon=False, alert_text_override=None):
         from utils import image_utils
@@ -283,6 +309,16 @@ class WorldCupGamesScene(GamesScene):
             w = get_text_3x5_width(event_text)
             x = 32 - w // 2
             draw_text_3x5(self.draw['full'], max(0, x), 27, event_text, color)
+        else:
+            # Fallback: display the stadium location if no events yet
+            loc = game.get('venue_name') or game.get('venue_city')
+            if loc:
+                loc_str = loc.upper()
+                if len(loc_str) > 16:
+                    loc_str = loc_str[:15] + "."
+                w = get_text_3x5_width(loc_str)
+                x = 32 - w // 2
+                draw_text_3x5(self.draw['full'], max(0, x), 27, loc_str, self.COLOURS['grey_light'])
 
     def build_game_complete_image(self, game, rotation_mode=0):
         from utils import image_utils
@@ -362,3 +398,13 @@ class WorldCupGamesScene(GamesScene):
             w = get_text_3x5_width(event_text)
             x = 32 - w // 2
             draw_text_3x5(self.draw['full'], max(0, x), 27, event_text, color)
+        else:
+            # Fallback: display the stadium location if no events yet
+            loc = game.get('venue_name') or game.get('venue_city')
+            if loc:
+                loc_str = loc.upper()
+                if len(loc_str) > 16:
+                    loc_str = loc_str[:15] + "."
+                w = get_text_3x5_width(loc_str)
+                x = 32 - w // 2
+                draw_text_3x5(self.draw['full'], max(0, x), 27, loc_str, self.COLOURS['grey_light'])

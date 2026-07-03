@@ -91,6 +91,11 @@ def get_games(date):
                 elif 'group' in season_slug:
                     stage = 'GRP'
 
+                # Venue & Location Details
+                venue_obj = comp.get('venue', {})
+                venue_name = venue_obj.get('fullName', '')
+                venue_city = venue_obj.get('address', {}).get('city', '')
+
                 # Parse events (Goals and Red Cards)
                 match_events = []
                 home_id = str(home_team['team']['id'])
@@ -168,6 +173,8 @@ def get_games(date):
                     'period_type': period_type,
                     'period_time_remaining': status_obj.get('displayClock', ''),
                     'stage': stage,
+                    'venue_name': venue_name,
+                    'venue_city': venue_city,
                     'events': match_events,
                     'home_team_scored': False,
                     'away_team_scored': False,
