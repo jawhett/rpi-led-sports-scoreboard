@@ -54,6 +54,12 @@ def get_games(date):
                 home_score = int(home_team['score']) if home_team.get('score') is not None else 0
                 away_score = int(away_team['score']) if away_team.get('score') is not None else 0
                 
+                # Shootout scores
+                home_shootout = home_team.get('shootoutScore')
+                away_shootout = away_team.get('shootoutScore')
+                home_shootout = int(home_shootout) if home_shootout is not None else None
+                away_shootout = int(away_shootout) if away_shootout is not None else None
+                
                 # Status text
                 if status_code == 1:
                     status_text = 'Scheduled'
@@ -66,6 +72,30 @@ def get_games(date):
                 period_type = 'Std'
                 if 'AET' in status_text or 'PEN' in status_text:
                     period_type = 'OT'
+                
+                # Parse scorers
+                goals = []
+                home_id = str(home_team['team']['id'])
+                away_id = str(away_team['team']['id'])
+                for d in comp.get('details', []):
+                    if d.get('scoringPlay') or 'Goal' in d.get('type', {}).get('text', ''):
+                        scorer = "Unknown"
+                        if d.get('athletesInvolved'):
+                            scorer = d['athletesInvolved'][0].get('shortName', 'Unknown')
+                        clock = d.get('clock', {}).get('displayValue', '')
+                        team_id = str(d.get('team', {}).get('id'))
+                        
+                        goal_team = None
+                        if team_id == home_id:
+                            goal_team = 'home'
+                        elif team_id == away_id:
+                            goal_team = 'away'
+                            
+                        goals.append({
+                            'scorer': scorer,
+                            'clock': clock,
+                            'team': goal_team
+                        })
                 
                 # Try downloading team logos if they don't exist
                 for team_data in [home_team, away_team]:
@@ -107,14 +137,15 @@ def get_games(date):
                     'away_abrv': away_abrv,
                     'home_score': home_score,
                     'away_score': away_score,
-                    'start_datetime_utc': start_time_utc,
-                    'start_datetime_local': start_time_local,
+                    'home_shootout': home_shootout,
+                    'away_shootout': away_shootout,
                     'status': status_text,
                     'status_code': status_code,
                     'has_started': True if status_code > 1 else False,
                     'period_num': period_num,
                     'period_type': period_type,
                     'period_time_remaining': status_obj.get('displayClock', ''),
+                    'goals': goals,
                     'home_team_scored': False,
                     'away_team_scored': False,
                     'scoring_team': None

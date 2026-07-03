@@ -80,13 +80,34 @@ class WorldCupGamesScene(GamesScene):
             for game in games:
                 if game['status_code'] == 1:
                     self.build_game_not_started_image(game)
+                    self.transition_image(direction='in')
                 elif game['status_code'] == 3:
-                    self.build_game_complete_image(game)
+                    duration = max(12.0, self.settings['game_display_duration'] * 4)
+                    elapsed = 0.0
+                    step = 1.0
+                    goals = game.get('goals', [])
+                    num_modes = max(2, len(goals))
+                    
+                    self.build_game_complete_image(game, rotation_mode=0)
+                    self.transition_image(direction='in')
+                    
+                    while elapsed < duration:
+                        rotation_mode = int(elapsed // 2) % num_modes
+                        self.build_game_complete_image(game, rotation_mode=rotation_mode)
+                        matrix.SetImage(self.images['full'])
+                        
+                        sleep_time = min(step, duration - elapsed)
+                        sleep(sleep_time)
+                        elapsed += sleep_time
+                        
+                    self.transition_image(direction='out')
+                    continue
                 elif game['status_code'] == 2:
                     duration = max(12.0, self.settings['game_display_duration'] * 4)
                     elapsed = 0.0
                     step = 1.0
-                    num_modes = 2
+                    goals = game.get('goals', [])
+                    num_modes = max(2, len(goals))
                     
                     self.build_game_in_progress_image(game, rotation_mode=0)
                     self.transition_image(direction='in')
@@ -104,8 +125,6 @@ class WorldCupGamesScene(GamesScene):
                     continue
                 else:
                     print(f"Unexpected game status code encountered: {game['status_code']}.")
-
-                self.transition_image(direction='in')
 
                 if self.settings['score_alerting']['score_coloured'] and self.settings['score_alerting']['score_fade_animation']:
                     if game['scoring_team']:
@@ -235,7 +254,18 @@ class WorldCupGamesScene(GamesScene):
             color_home = self.COLOURS['red_bright']
         self.draw['full'].text((x, 10), str(home_score), font=self.FONTS['lrg_bold'], fill=color_home)
 
-    def build_game_complete_image(self, game):
+        # Cycle goal scorers at the bottom
+        goals = game.get('goals', [])
+        if goals:
+            goal_idx = rotation_mode % len(goals)
+            g = goals[goal_idx]
+            team_abrv = game['away_abrv'] if g['team'] == 'away' else game['home_abrv']
+            goal_text = f"{team_abrv}: {g['scorer']} {g['clock']}"
+            w = get_text_3x5_width(goal_text)
+            x = 32 - w // 2
+            draw_text_3x5(self.draw['full'], max(0, x), 27, goal_text, self.COLOURS['white'])
+
+    def build_game_complete_image(self, game, rotation_mode=0):
         from utils import image_utils
         from PIL import Image
         import os
@@ -269,6 +299,9 @@ class WorldCupGamesScene(GamesScene):
                 pass
 
         status_text = game.get('status', 'FINAL')
+        if game.get('away_shootout') is not None and game.get('home_shootout') is not None:
+            status_text = f"PEN {game['away_shootout']}-{game['home_shootout']}"
+            
         w = get_text_3x5_width(status_text)
         x = 32 - w // 2
         draw_text_3x5(self.draw['full'], x, 1, status_text, self.COLOURS['red_bright'])
@@ -288,3 +321,14 @@ class WorldCupGamesScene(GamesScene):
         if game['home_score'] < game['away_score']:
             color_home = (color_home[0] // 3, color_home[1] // 3, color_home[2] // 3)
         self.draw['full'].text((x, 10), str(home_score), font=self.FONTS['lrg_bold'], fill=color_home)
+
+        # Cycle goal scorers at the bottom
+        goals = game.get('goals', [])
+        if goals:
+            goal_idx = rotation_mode % len(goals)
+            g = goals[goal_idx]
+            team_abrv = game['away_abrv'] if g['team'] == 'away' else game['home_abrv']
+            goal_text = f"{team_abrv}: {g['scorer']} {g['clock']}"
+            w = get_text_3x5_width(goal_text)
+            x = 32 - w // 2
+            draw_text_3x5(self.draw['full'], max(0, x), 27, goal_text, self.COLOURS['white'])
