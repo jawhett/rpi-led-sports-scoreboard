@@ -51,12 +51,10 @@ class WorldCupGamesScene(GamesScene):
                 if game['status_code'] != 1:
                     matched_game = next(filter(lambda x: x['game_id'] == game['game_id'], self.data['games_previous_pull']), None)
                     if matched_game and matched_game['status_code'] != 1:
-                        # Find if goals count increased
                         prev_goals = len([e for e in matched_game.get('events', []) if e['type'] == 'goal'])
                         curr_goals = len([e for e in game.get('events', []) if e['type'] == 'goal'])
                         
                         if curr_goals > prev_goals:
-                            # Something was scored. Check scores
                             game['away_team_scored'] = True if game['away_score'] > matched_game['away_score'] else False
                             game['home_team_scored'] = True if game['home_score'] > matched_game['home_score'] else False
                             
@@ -185,11 +183,13 @@ class WorldCupGamesScene(GamesScene):
         x = 48 - w // 2
         self.draw['full'].text((x, 18), game['home_abrv'], font=self.FONTS['sm_bold'], fill=self.COLOURS['white'])
 
-        # Show round prefix next to TODAY/TOMORROW/Date if it exists
-        time_str = game['start_datetime_local'].strftime('%-I:%M%p').replace('AM', 'A').replace('PM', 'P')
-        date_str = game['start_datetime_local'].strftime('%-m/%-d')
-        stage_str = f"{game.get('stage', '')} " if game.get('stage') else ""
-        time_str = f"{stage_str}{date_str} {time_str}".strip()
+        # Alternate between Date/Time and the tournament stage at the bottom
+        if rotation_mode % 2 == 1 and game.get('stage'):
+            time_str = f"STAGE {game['stage']}"
+        else:
+            time_str = game['start_datetime_local'].strftime('%-I:%M%p').replace('AM', 'A').replace('PM', 'P')
+            date_str = game['start_datetime_local'].strftime('%-m/%-d')
+            time_str = f"{date_str} {time_str}"
 
         w = get_text_3x5_width(time_str)
         x = 32 - w // 2
@@ -228,17 +228,20 @@ class WorldCupGamesScene(GamesScene):
             except Exception:
                 pass
 
-        clock_str = game.get('period_time_remaining', '')
-        period_str = ""
-        if game.get('period_num') == 1:
-            period_str = "1H"
-        elif game.get('period_num') == 2:
-            period_str = "2H"
-        elif game.get('period_num') > 2:
-            period_str = "OT"
+        # Alternate the top display to avoid crowding
+        if rotation_mode % 2 == 1 and game.get('stage'):
+            status_text = f"STAGE {game['stage']}"
+        else:
+            clock_str = game.get('period_time_remaining', '')
+            period_str = ""
+            if game.get('period_num') == 1:
+                period_str = "1H"
+            elif game.get('period_num') == 2:
+                period_str = "2H"
+            elif game.get('period_num') > 2:
+                period_str = "OT"
+            status_text = f"{period_str} {clock_str}".strip()
 
-        stage_str = f"{game.get('stage', '')} " if game.get('stage') else ""
-        status_text = f"{stage_str}{period_str} {clock_str}".strip()
         w = get_text_3x5_width(status_text)
         x = 32 - w // 2
         draw_text_3x5(self.draw['full'], x, 1, status_text, self.COLOURS['yellow'])
@@ -314,12 +317,13 @@ class WorldCupGamesScene(GamesScene):
             except Exception:
                 pass
 
-        status_text = game.get('status', 'FINAL')
-        if game.get('away_shootout') is not None and game.get('home_shootout') is not None:
-            status_text = f"PEN {game['away_shootout']}-{game['home_shootout']}"
-            
-        stage_str = f"{game.get('stage', '')} " if game.get('stage') else ""
-        status_text = f"{stage_str}{status_text}".strip()
+        # Alternate the top display to avoid crowding
+        if rotation_mode % 2 == 1 and game.get('stage'):
+            status_text = f"STAGE {game['stage']}"
+        else:
+            status_text = game.get('status', 'FINAL')
+            if game.get('away_shootout') is not None and game.get('home_shootout') is not None:
+                status_text = f"PEN {game['away_shootout']}-{game['home_shootout']}"
             
         w = get_text_3x5_width(status_text)
         x = 32 - w // 2
