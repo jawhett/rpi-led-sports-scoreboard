@@ -8,6 +8,7 @@ scene_order:
   - nfl_standings
   - wnba_games
   - mlb_games
+  - worldcup_games
 
 
 # Note your favourite teams by league. Any number of teams can be specified.
@@ -25,6 +26,8 @@ favourite_teams:
     # - TOR # Example.
   nfl:
     # - NE # Example.
+  worldcup:
+    # - USA # Example.
 
 
 # Note alt logos that should be used. Any number of teams can have an alt logo, but each team is limited to a single alt logo at a time.
@@ -42,6 +45,8 @@ alt_logos:
     # NYY: 'Cap' # Example.
   nfl:
     # NE: 'Retro' # Example.
+  worldcup:
+    # USA: 'Retro' # Example.
 
 
 # Settings for each scene.
@@ -254,6 +259,21 @@ scene_settings:
       display_for:
         - division
         # - conference
+
+  worldcup:
+    games: # worldcup_games scene.
+      transition: 'modern'
+      splash:
+        display_splash: True
+        splash_display_duration: 1.5
+      game_display_duration: 3.0
+      score_alerting:
+        score_coloured: true
+        score_fade_animation: true
+      rollover:
+        rollover_start_time_local: '07:00'
+        show_completed_games_until_rollover_end_time: True
+        rollover_end_time_local: '12:00'
 
 
 # Brightness settings.

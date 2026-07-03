@@ -17,6 +17,7 @@ from scenes.standings_scenes.standings_scene_mlb import MLBStandingsScene
 from scenes.game_scenes.games_scene_nfl import NFLGamesScene
 from scenes.fav_team_next_game_scenes.fav_team_next_game_scene_nfl import NFLFavTeamNextGameScene
 from scenes.standings_scenes.standings_scene_nfl import NFLStandingsScene
+from scenes.game_scenes.games_scene_worldcup import WorldCupGamesScene
 
 from setup.matrix_setup import matrix, determine_matrix_brightness
 from utils import data_utils
@@ -139,6 +140,9 @@ def get_league_games(league, date):
         elif league == 'PWHL':
             import data.pwhl_data
             games = data.pwhl_data.get_games(date)
+        elif league == 'WORLDCUP':
+            import data.worldcup_data
+            games = data.worldcup_data.get_games(date)
     except Exception as e:
         print(f"Error fetching data for {league}: {e}")
         games = []
@@ -202,7 +206,8 @@ def run_scoreboard():
 
         'nfl_games':                NFLGamesScene(),
         'nfl_fav_team_next_game':   NFLFavTeamNextGameScene(),
-        'nfl_standings':            NFLStandingsScene()
+        'nfl_standings':            NFLStandingsScene(),
+        'worldcup_games':           WorldCupGamesScene()
     }
 
     scene_leagues = {
@@ -211,10 +216,11 @@ def run_scoreboard():
         'nhl_games': 'NHL',
         'mlb_games': 'MLB',
         'wnba_games': 'WNBA',
-        'pwhl_games': 'PWHL'
+        'pwhl_games': 'PWHL',
+        'worldcup_games': 'WORLDCUP'
     }
 
-    PRIORITY_LEAGUES = ['NBA', 'NFL', 'NHL', 'MLB', 'WNBA', 'PWHL']
+    PRIORITY_LEAGUES = ['NBA', 'NFL', 'NHL', 'MLB', 'WNBA', 'PWHL', 'WORLDCUP']
 
     while True:
         config = data_utils.read_yaml('config.yaml')
