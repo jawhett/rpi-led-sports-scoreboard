@@ -116,8 +116,9 @@ class MLBGamesScene(GamesScene):
         """
 
         # Refresh config and load to settings key.
-        self.settings = data_utils.read_yaml('config.yaml')['scene_settings'][self.LEAGUE.lower()]['games']
-        self.alt_logos = data_utils.read_yaml('config.yaml')['alt_logos'][self.LEAGUE.lower()] if data_utils.read_yaml('config.yaml')['alt_logos'][self.LEAGUE.lower()] else {} # Note the teams with an alternative logo per config.yaml.
+        config_yaml = data_utils.read_yaml('config.yaml')
+        self.settings = config_yaml['scene_settings'][self.LEAGUE.lower()]['games']
+        self.alt_logos = config_yaml['alt_logos'][self.LEAGUE.lower()] if config_yaml['alt_logos'][self.LEAGUE.lower()] else {} # Note the teams with an alternative logo per config.yaml.
 
         # Determine which days should be displayed. Will generate a list with one or two elements. Two means rollover time and yesterdays games should be displayed.
         dates_to_display = date_utils.determine_dates_to_display_games(self.settings['rollover']['rollover_start_time_local'], self.settings['rollover']['rollover_end_time_local'])
@@ -145,6 +146,18 @@ class MLBGamesScene(GamesScene):
         }
 
         # If there are games to display from yesterday (and setting is enabled), build and display splash image (if enabled), then images for those games.
+        display_behavior = config_yaml.get('display_behavior', {})
+        if display_behavior.get('skip_empty_scenes'):
+            has_games_yesterday = False
+            has_games_today = False
+            if display_yesterday and hasattr(self, 'data_previous_day'):
+                has_games_yesterday = len(self.filter_games(self.data_previous_day.get('games', []))) > 0
+            if hasattr(self, 'data') and self.data is not None:
+                has_games_today = len(self.filter_games(self.data.get('games', []) if self.data else [])) > 0
+
+            if not has_games_yesterday and not has_games_today:
+                return
+
         if display_yesterday and self.settings['rollover']['show_completed_games_until_rollover_end_time']:
             if self.settings['splash']['display_splash']:
                 self.display_splash_image(len(self.data_previous_day['games']), date=dates_to_display[0])
