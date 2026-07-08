@@ -19,8 +19,9 @@ class WorldCupGamesScene(GamesScene):
 
     def display_scene(self):
         # Refresh config and load to settings key.
-        self.settings = data_utils.read_yaml('config.yaml')['scene_settings'][self.LEAGUE.lower()]['games']
-        self.alt_logos = data_utils.read_yaml('config.yaml')['alt_logos'][self.LEAGUE.lower()] if data_utils.read_yaml('config.yaml')['alt_logos'][self.LEAGUE.lower()] else {}
+        config_yaml = data_utils.read_yaml('config.yaml')
+        self.settings = config_yaml['scene_settings'][self.LEAGUE.lower()]['games']
+        self.alt_logos = config_yaml['alt_logos'][self.LEAGUE.lower()] if config_yaml['alt_logos'][self.LEAGUE.lower()] else {}
 
         # Determine which days should be displayed.
         dates_to_display = date_utils.determine_dates_to_display_games(self.settings['rollover']['rollover_start_time_local'], self.settings['rollover']['rollover_end_time_local'])
@@ -40,8 +41,20 @@ class WorldCupGamesScene(GamesScene):
         }
 
         # If there are games to display from yesterday, build and display them.
-        if display_yesterday and self.settings['rollover']['show_completed_games_until_rollover_end_time']:
-            if self.settings['splash']['display_splash']:
+        display_behavior = config_yaml.get('display_behavior', {})
+        if display_behavior.get('skip_empty_scenes', True):
+            has_games_yesterday = False
+            has_games_today = False
+            if display_yesterday and hasattr(self, 'data_previous_day'):
+                has_games_yesterday = len(self.filter_games(self.data_previous_day.get('games', []))) > 0
+            if hasattr(self, 'data') and self.data is not None:
+                has_games_today = len(self.filter_games(self.data.get('games', []) if self.data else [])) > 0
+
+            if not has_games_yesterday and not has_games_today:
+                return
+
+        if display_yesterday and self.settings['rollover']['show_completed_games_until_rollover_end_time'] and not hasattr(self, 'display_only_live') and not hasattr(self, 'display_only_games'):
+            if self.settings['splash']['display_splash'] and not hasattr(self, 'display_only_live') and not hasattr(self, 'display_only_games'):
                 self.display_splash_image(len(self.data_previous_day['games']), date=dates_to_display[0])
             self.display_game_images(self.data_previous_day['games'], date=dates_to_display[0])
 
@@ -66,7 +79,7 @@ class WorldCupGamesScene(GamesScene):
                                 game['scoring_team'] = 'home'
 
         # Display splash (if enabled) for current day.
-        if self.settings['splash']['display_splash']:
+        if self.settings['splash']['display_splash'] and not hasattr(self, 'display_only_live') and not hasattr(self, 'display_only_games'):
             self.display_splash_image(len(self.data['games']), date=dates_to_display[-1])
         
         # Display game image(s) for current day.

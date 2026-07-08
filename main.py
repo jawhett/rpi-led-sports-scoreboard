@@ -253,6 +253,34 @@ def run_scoreboard():
                             live_regular_games[league] = []
                         live_regular_games[league].append(game['game_id'])
 
+
+        display_behavior = config.get('display_behavior', {})
+        sleep_schedule = display_behavior.get('sleep_schedule', {})
+
+        is_sleeping = False
+        if sleep_schedule.get('enabled'):
+            start_time_str = sleep_schedule.get('start_time_local', '00:00')
+            end_time_str = sleep_schedule.get('end_time_local', '00:00')
+            try:
+                now_time = datetime.datetime.now().time()
+                start_time = datetime.datetime.strptime(str(start_time_str), "%H:%M").time()
+                end_time = datetime.datetime.strptime(str(end_time_str), "%H:%M").time()
+
+                if start_time < end_time:
+                    is_sleeping = start_time <= now_time <= end_time
+                else:
+                    is_sleeping = now_time >= start_time or now_time <= end_time
+            except Exception as e:
+                print(f"Error parsing sleep schedule: {e}")
+
+        override_for_live_favorites = sleep_schedule.get('override_for_live_favorites', True)
+        if is_sleeping:
+            if not (override_for_live_favorites and live_fav_games):
+                print(f"[PRIORITY] Sleep schedule active. Sleeping.")
+                matrix.Clear()
+                time.sleep(60)
+                continue
+
         for scene_obj in scene_mapping.values():
             if hasattr(scene_obj, 'display_only_games'):
                 delattr(scene_obj, 'display_only_games')
@@ -278,9 +306,17 @@ def run_scoreboard():
         if has_live_games:
             continue
 
+
         print("[PRIORITY] No live/recent games active. Running normal cycle.")
         for scene in scene_order:
             scene_mapping[scene].display_scene()
+
+        idle_pause = display_behavior.get('idle_loop_pause_seconds', 0)
+        if idle_pause > 0:
+            print(f"[PRIORITY] End of normal cycle. Pausing for {idle_pause} seconds.")
+            matrix.Clear()
+            time.sleep(idle_pause)
+
 
 
 if __name__ == '__main__':
