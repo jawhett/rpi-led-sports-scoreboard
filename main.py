@@ -160,26 +160,6 @@ def is_game_live(game, league):
         return game.get('status_code') == 2
 
 
-def is_game_live_or_recent(game, league):
-    if is_game_live(game, league):
-        return True
-        
-    is_final = False
-    if league == 'MLB':
-        is_final = game.get('status') == 'Final'
-    elif league == 'PWHL':
-        is_final = str(game.get('status')) == '3'
-    else:
-        is_final = game.get('status_code') == 3
-        
-    if is_final:
-        start_time = game.get('start_datetime_local')
-        if start_time:
-            now = datetime.datetime.now().astimezone()
-            elapsed_hours = (now - start_time).total_seconds() / 3600.0
-            if 0 < elapsed_hours < 5.0:
-                return True
-    return False
 
 
 def run_scoreboard():
@@ -242,7 +222,7 @@ def run_scoreboard():
             fav_list = [str(team).upper() for team in fav_list]
 
             for game in games:
-                if is_game_live_or_recent(game, league):
+                if is_game_live(game, league):
                     is_fav = (game.get('away_abrv', '').upper() in fav_list) or (game.get('home_abrv', '').upper() in fav_list)
                     scene_name = f"{league.lower()}_games"
                     
@@ -292,6 +272,13 @@ def run_scoreboard():
             for scene_name, game_id in live_fav_games:
                 scene_mapping[scene_name].display_only_games = [game_id]
                 scene_mapping[scene_name].display_scene()
+
+            # Pause before repeating the loop
+            live_pause = display_behavior.get('live_loop_pause_seconds', display_behavior.get('idle_loop_pause_seconds', 0))
+            if live_pause > 0:
+                print(f"[PRIORITY] End of live favorite cycle. Pausing for {live_pause} seconds.")
+                matrix.Clear()
+                time.sleep(live_pause)
             continue
 
         has_live_games = False
@@ -304,6 +291,12 @@ def run_scoreboard():
                 has_live_games = True
 
         if has_live_games:
+            # Pause before repeating the loop
+            live_pause = display_behavior.get('live_loop_pause_seconds', display_behavior.get('idle_loop_pause_seconds', 0))
+            if live_pause > 0:
+                print(f"[PRIORITY] End of live regular cycle. Pausing for {live_pause} seconds.")
+                matrix.Clear()
+                time.sleep(live_pause)
             continue
 
 
