@@ -57,8 +57,8 @@ scene_settings:
       transition: 'modern'
       splash:
         display_splash: True
-        splash_display_duration: 1.5
-      game_display_duration: 3.0
+        splash_display_duration: 3.0
+      game_display_duration: 15.0
       score_alerting:
         score_coloured: true
         score_fade_animation: true
@@ -76,7 +76,7 @@ scene_settings:
       transition: 'modern'
       splash:
         display_splash: True
-        splash_display_duration: 1.5
+        splash_display_duration: 3.0
       scroll:
         scroll_pause_duration: 1
         scroll_frame_duration: 0.075
@@ -93,8 +93,8 @@ scene_settings:
       transition: 'modern'
       splash:
         display_splash: True
-        splash_display_duration: 1.5
-      game_display_duration: 3.0
+        splash_display_duration: 3.0
+      game_display_duration: 15.0
       score_alerting:
         score_coloured: true
         score_fade_animation: true
@@ -112,7 +112,7 @@ scene_settings:
       transition: 'modern'
       splash:
         display_splash: True
-        splash_display_duration: 1.5
+        splash_display_duration: 3.0
       scroll:
         scroll_pause_duration: 1
         scroll_frame_duration: 0.075
@@ -127,8 +127,8 @@ scene_settings:
       transition: 'modern'
       splash:
         display_splash: True
-        splash_display_duration: 1.5
-      game_display_duration: 3.0
+        splash_display_duration: 3.0
+      game_display_duration: 15.0
       score_alerting:
         score_coloured: true
         score_fade_animation: true
@@ -146,7 +146,7 @@ scene_settings:
       transition: 'modern'
       splash:
         display_splash: True
-        splash_display_duration: 1.5
+        splash_display_duration: 3.0
       scroll:
         scroll_pause_duration: 1
         scroll_frame_duration: 0.075
@@ -161,8 +161,8 @@ scene_settings:
       transition: 'modern'
       splash:
         display_splash: True
-        splash_display_duration: 1.5
-      game_display_duration: 3.0
+        splash_display_duration: 3.0
+      game_display_duration: 15.0
       score_alerting:
         score_coloured: false
         score_fade_animation: false
@@ -180,7 +180,7 @@ scene_settings:
       transition: 'modern'
       splash:
         display_splash: True
-        splash_display_duration: 1.5
+        splash_display_duration: 3.0
       scroll:
         scroll_pause_duration: 1
         scroll_frame_duration: 0.075
@@ -195,8 +195,8 @@ scene_settings:
       transition: 'modern'
       splash:
         display_splash: True
-        splash_display_duration: 1.5
-      game_display_duration: 3.0
+        splash_display_duration: 3.0
+      game_display_duration: 15.0
       display_outs_and_bases: True
       score_alerting:
         score_coloured: True
@@ -215,7 +215,7 @@ scene_settings:
       transition: 'modern'
       splash:
         display_splash: True
-        splash_display_duration: 1.5
+        splash_display_duration: 3.0
       scroll:
         scroll_pause_duration: 1
         scroll_frame_duration: 0.075
@@ -231,8 +231,8 @@ scene_settings:
       transition: 'modern'
       splash:
         display_splash: True
-        splash_display_duration: 1.5
-      game_display_duration: 3.0
+        splash_display_duration: 3.0
+      game_display_duration: 15.0
       score_alerting:
         score_coloured: true
         score_fade_animation: true
@@ -250,7 +250,7 @@ scene_settings:
       transition: 'modern'
       splash:
         display_splash: True
-        splash_display_duration: 1.5
+        splash_display_duration: 3.0
       scroll:
         scroll_pause_duration: 1
         scroll_frame_duration: 0.075
@@ -265,8 +265,8 @@ scene_settings:
       transition: 'modern'
       splash:
         display_splash: True
-        splash_display_duration: 1.5
-      game_display_duration: 3.0
+        splash_display_duration: 3.0
+      game_display_duration: 15.0
       score_alerting:
         score_coloured: true
         score_fade_animation: true
@@ -295,5 +295,6 @@ display_behavior:
     start_time_local: '01:00'
     end_time_local: '07:00'
     override_for_live_favorites: true
+  live_loop_pause_seconds: 30
   idle_loop_pause_seconds: 120
   skip_empty_scenes: true

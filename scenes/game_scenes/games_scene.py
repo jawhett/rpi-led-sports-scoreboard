@@ -87,21 +87,6 @@ class GamesScene(Scene):
                     filtered.append(g)
                     continue
                     
-                # Is recently completed?
-                is_final = False
-                if league == 'MLB':
-                    is_final = g.get('status') == 'Final'
-                elif league == 'PWHL':
-                    is_final = str(g.get('status')) == '3'
-                else:
-                    is_final = g.get('status_code') == 3
-                    
-                if is_final:
-                    start_time = g.get('start_datetime_local')
-                    if start_time:
-                        elapsed_hours = (now - start_time).total_seconds() / 3600.0
-                        if 0 < elapsed_hours < 5.0:
-                            filtered.append(g)
             return filtered
         return games
 
