@@ -304,6 +304,10 @@ def run_scoreboard():
                 has_live_games = True
 
         if has_live_games:
+            live_pause = display_behavior.get('live_loop_pause_seconds', 0)
+            if live_pause > 0:
+                print(f"[PRIORITY] End of live cycle. Pausing for {live_pause} seconds.")
+                time.sleep(live_pause)
             continue
 
 
