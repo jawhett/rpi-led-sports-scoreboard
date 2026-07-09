@@ -88,8 +88,8 @@ def get_games(date, league_abrv):
                         # Timeouts and fouls
                         'home_timeouts': game['homeTeam'].get('timeoutsRemaining', 0),
                         'away_timeouts': game['awayTeam'].get('timeoutsRemaining', 0),
-                        'home_fouls': game['homeTeam'].get('fouls', 0),
-                        'away_fouls': game['awayTeam'].get('fouls', 0),
+                        'home_fouls': game['homeTeam'].get('fouls'),
+                        'away_fouls': game['awayTeam'].get('fouls'),
                         # Will set the remaining later, default to False and None for now.
                         'home_team_scored': False,
                         'away_team_scored': False,

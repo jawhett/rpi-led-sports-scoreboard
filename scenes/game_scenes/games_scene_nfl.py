@@ -345,7 +345,6 @@ class NFLGamesScene(GamesScene):
         image_utils.clear_image(self.images['full'], self.draw['full'])
         
         # Logos
-        self.draw['full'].rectangle([0, 1, 20, 17], outline=TEAM_COLORS.get(game['away_abrv'], self.COLOURS['white']))
         if rotation_mode == 1:
             self.draw['full'].text((3, 6), game['away_abrv'][:3], fill=self.COLOURS['white'], font=self.FONTS['sm'])
         else:
@@ -361,7 +360,6 @@ class NFLGamesScene(GamesScene):
                 except Exception as e:
                     pass
 
-        self.draw['full'].rectangle([43, 1, 63, 17], outline=TEAM_COLORS.get(game['home_abrv'], self.COLOURS['white']))
         if rotation_mode == 1:
             self.draw['full'].text((46, 6), game['home_abrv'][:3], fill=self.COLOURS['white'], font=self.FONTS['sm'])
         else:
@@ -435,18 +433,18 @@ class NFLGamesScene(GamesScene):
         elif self.settings['score_alerting']['score_coloured'] and game.get('home_team_scored'):
             color_home = self.COLOURS['red_bright']
 
-        self.draw['full'].text((32 - aw//2, 12), away_score, font=self.FONTS['sm_bold'], fill=color_away)
-        self.draw['full'].text((32 - hw//2, 20), home_score, font=self.FONTS['sm_bold'], fill=color_home)
+        self.draw['full'].text((10 - int(aw)//2, 18), away_score, font=self.FONTS['sm_bold'], fill=color_away)
+        self.draw['full'].text((53 - int(hw)//2, 18), home_score, font=self.FONTS['sm_bold'], fill=color_home)
 
         # Timeouts
         for i in range(3):
             color = self.COLOURS['yellow_bright'] if i < game.get('away_timeouts', 0) else self.COLOURS['grey_dark']
-            self.draw['full'].point((6 + i * 3, 23), fill=color)
-            self.draw['full'].point((7 + i * 3, 23), fill=color)
+            self.draw['full'].point((6 + i * 3, 26), fill=color)
+            self.draw['full'].point((7 + i * 3, 26), fill=color)
         for i in range(3):
             color = self.COLOURS['yellow_bright'] if i < game.get('home_timeouts', 0) else self.COLOURS['grey_dark']
-            self.draw['full'].point((49 + i * 3, 23), fill=color)
-            self.draw['full'].point((50 + i * 3, 23), fill=color)
+            self.draw['full'].point((49 + i * 3, 26), fill=color)
+            self.draw['full'].point((50 + i * 3, 26), fill=color)
 
         # Bottom Banner
         banner_text = ""
@@ -469,7 +467,6 @@ class NFLGamesScene(GamesScene):
         image_utils.clear_image(self.images['full'], self.draw['full'])
         
         # Logos
-        self.draw['full'].rectangle([0, 1, 20, 17], outline=TEAM_COLORS.get(game['away_abrv'], self.COLOURS['white']))
         if rotation_mode == 1:
             self.draw['full'].text((3, 6), game['away_abrv'][:3], fill=self.COLOURS['white'], font=self.FONTS['sm'])
         else:
@@ -485,7 +482,6 @@ class NFLGamesScene(GamesScene):
                 except Exception as e:
                     pass
 
-        self.draw['full'].rectangle([43, 1, 63, 17], outline=TEAM_COLORS.get(game['home_abrv'], self.COLOURS['white']))
         if rotation_mode == 1:
             self.draw['full'].text((46, 6), game['home_abrv'][:3], fill=self.COLOURS['white'], font=self.FONTS['sm'])
         else:
@@ -535,7 +531,6 @@ class NFLGamesScene(GamesScene):
         image_utils.clear_image(self.images['full'], self.draw['full'])
         
         # Logos
-        self.draw['full'].rectangle([0, 1, 20, 17], outline=TEAM_COLORS.get(game['away_abrv'], self.COLOURS['white']))
         away_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["away_abrv"]}.png' if game["away_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["away_abrv"]}_{self.alt_logos[game["away_abrv"]]}.png'
         if os.path.exists(away_logo_path):
             try:
@@ -548,7 +543,6 @@ class NFLGamesScene(GamesScene):
             except Exception as e:
                 pass
 
-        self.draw['full'].rectangle([43, 1, 63, 17], outline=TEAM_COLORS.get(game['home_abrv'], self.COLOURS['white']))
         home_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["home_abrv"]}.png' if game["home_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["home_abrv"]}_{self.alt_logos[game["home_abrv"]]}.png'
         if os.path.exists(home_logo_path):
             try:
@@ -581,8 +575,8 @@ class NFLGamesScene(GamesScene):
         aw = self.draw['full'].textlength(str(away_score), font=self.FONTS['sm'])
         hw = self.draw['full'].textlength(str(home_score), font=self.FONTS['sm'])
 
-        self.draw['full'].text((32 - aw//2, 12), str(away_score), font=self.FONTS['sm_bold'], fill=color_away)
-        self.draw['full'].text((32 - hw//2, 20), str(home_score), font=self.FONTS['sm_bold'], fill=color_home)
+        self.draw['full'].text((10 - int(aw)//2, 18), str(away_score), font=self.FONTS['sm_bold'], fill=color_away)
+        self.draw['full'].text((53 - int(hw)//2, 18), str(home_score), font=self.FONTS['sm_bold'], fill=color_home)
 
     def fade_score_change(self, game, clock_seconds=None, rotation_mode=0):
         """ Fades score from red to white after a score change and shows dynamic alerts.
