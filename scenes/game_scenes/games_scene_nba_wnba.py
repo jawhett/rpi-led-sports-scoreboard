@@ -416,7 +416,6 @@ class NBAWNBAGamesScene(GamesScene):
         image_utils.clear_image(self.images['full'], self.draw['full'])
         
         # Logos
-        self.draw['full'].rectangle([0, 1, 20, 17], outline=TEAM_COLORS.get(game['away_abrv'], self.COLOURS['white']))
         if rotation_mode == 1:
             self.draw['full'].text((3, 6), game['away_abrv'][:3], fill=self.COLOURS['white'], font=self.FONTS['sm'])
         else:
@@ -432,7 +431,6 @@ class NBAWNBAGamesScene(GamesScene):
                 except Exception as e:
                     pass
 
-        self.draw['full'].rectangle([43, 1, 63, 17], outline=TEAM_COLORS.get(game['home_abrv'], self.COLOURS['white']))
         if rotation_mode == 1:
             self.draw['full'].text((46, 6), game['home_abrv'][:3], fill=self.COLOURS['white'], font=self.FONTS['sm'])
         else:
@@ -500,16 +498,16 @@ class NBAWNBAGamesScene(GamesScene):
         elif self.settings['score_alerting']['score_coloured'] and game.get('home_team_scored'):
             color_home = self.COLOURS['red_bright']
 
-        self.draw['full'].text((32 - aw//2, 12), away_score, font=self.FONTS['sm_bold'], fill=color_away)
-        self.draw['full'].text((32 - hw//2, 20), home_score, font=self.FONTS['sm_bold'], fill=color_home)
+        self.draw['full'].text((10 - int(aw)//2, 18), away_score, font=self.FONTS['sm_bold'], fill=color_away)
+        self.draw['full'].text((53 - int(hw)//2, 18), home_score, font=self.FONTS['sm_bold'], fill=color_home)
 
         # Timeouts
         for i in range(7):
             color = self.COLOURS['yellow_bright'] if i < game.get('away_timeouts', 0) else self.COLOURS['grey_dark']
-            self.draw['full'].point((3 + i * 2, 23), fill=color)
+            self.draw['full'].point((3 + i * 2, 25), fill=color)
         for i in range(7):
             color = self.COLOURS['yellow_bright'] if i < game.get('home_timeouts', 0) else self.COLOURS['grey_dark']
-            self.draw['full'].point((47 + i * 2, 23), fill=color)
+            self.draw['full'].point((47 + i * 2, 25), fill=color)
 
         # Bottom Banner
         banner_text = ""
@@ -517,12 +515,26 @@ class NBAWNBAGamesScene(GamesScene):
         if alert_text_override:
             banner_text = alert_text_override
             banner_color = self.COLOURS['yellow_bright']
+        elif rotation_mode == 1 and game.get('odds_str'):
+            from data.data_utils import parse_odds
+            parsed_odds = parse_odds(game.get('odds_str'))
+            if parsed_odds:
+                banner_text = f"{parsed_odds['fav_team']} {parsed_odds['spread']}"
+                banner_color = self.COLOURS['white']
         elif game.get('away_fouls') is not None or game.get('home_fouls') is not None:
-            banner_text = f"FOULS {game.get('away_fouls', 0)}-{game.get('home_fouls', 0)}"
-            if game.get('away_fouls', 0) >= 5 or game.get('home_fouls', 0) >= 5:
+            away_f = game.get('away_fouls') if game.get('away_fouls') is not None else 0
+            home_f = game.get('home_fouls') if game.get('home_fouls') is not None else 0
+            banner_text = f"FOULS {away_f}-{home_f}"
+            if away_f >= 5 or home_f >= 5:
                 banner_color = self.COLOURS['red_bright']
             else:
                 banner_color = self.COLOURS['yellow_bright']
+        elif game.get('odds_str'):
+            from data.data_utils import parse_odds
+            parsed_odds = parse_odds(game.get('odds_str'))
+            if parsed_odds:
+                banner_text = f"{parsed_odds['fav_team']} {parsed_odds['spread']}"
+                banner_color = self.COLOURS['white']
 
         if banner_text:
             w = get_text_3x5_width(banner_text)
@@ -534,7 +546,6 @@ class NBAWNBAGamesScene(GamesScene):
         image_utils.clear_image(self.images['full'], self.draw['full'])
         
         # Logos
-        self.draw['full'].rectangle([0, 1, 20, 17], outline=TEAM_COLORS.get(game['away_abrv'], self.COLOURS['white']))
         if rotation_mode == 1:
             self.draw['full'].text((3, 6), game['away_abrv'][:3], fill=self.COLOURS['white'], font=self.FONTS['sm'])
         else:
@@ -550,7 +561,6 @@ class NBAWNBAGamesScene(GamesScene):
                 except Exception as e:
                     pass
 
-        self.draw['full'].rectangle([43, 1, 63, 17], outline=TEAM_COLORS.get(game['home_abrv'], self.COLOURS['white']))
         if rotation_mode == 1:
             self.draw['full'].text((46, 6), game['home_abrv'][:3], fill=self.COLOURS['white'], font=self.FONTS['sm'])
         else:
@@ -600,7 +610,6 @@ class NBAWNBAGamesScene(GamesScene):
         image_utils.clear_image(self.images['full'], self.draw['full'])
         
         # Logos
-        self.draw['full'].rectangle([0, 1, 20, 17], outline=TEAM_COLORS.get(game['away_abrv'], self.COLOURS['white']))
         away_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["away_abrv"]}.png' if game["away_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["away_abrv"]}_{self.alt_logos[game["away_abrv"]]}.png'
         if os.path.exists(away_logo_path):
             try:
@@ -613,7 +622,6 @@ class NBAWNBAGamesScene(GamesScene):
             except Exception as e:
                 pass
 
-        self.draw['full'].rectangle([43, 1, 63, 17], outline=TEAM_COLORS.get(game['home_abrv'], self.COLOURS['white']))
         home_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["home_abrv"]}.png' if game["home_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["home_abrv"]}_{self.alt_logos[game["home_abrv"]]}.png'
         if os.path.exists(home_logo_path):
             try:
@@ -646,8 +654,8 @@ class NBAWNBAGamesScene(GamesScene):
         aw = self.draw['full'].textlength(str(away_score), font=self.FONTS['sm'])
         hw = self.draw['full'].textlength(str(home_score), font=self.FONTS['sm'])
 
-        self.draw['full'].text((32 - aw//2, 12), str(away_score), font=self.FONTS['sm_bold'], fill=color_away)
-        self.draw['full'].text((32 - hw//2, 20), str(home_score), font=self.FONTS['sm_bold'], fill=color_home)
+        self.draw['full'].text((10 - int(aw)//2, 18), str(away_score), font=self.FONTS['sm_bold'], fill=color_away)
+        self.draw['full'].text((53 - int(hw)//2, 18), str(home_score), font=self.FONTS['sm_bold'], fill=color_home)
 
     def fade_score_change(self, game, clock_seconds=None, rotation_mode=0):
         """ Fades score from red to white after a score change and shows dynamic alerts.
