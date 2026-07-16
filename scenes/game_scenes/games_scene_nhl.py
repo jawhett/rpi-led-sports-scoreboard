@@ -211,11 +211,6 @@ class NHLGamesScene(GamesScene):
     def build_game_in_progress_image(self, game, score_fade_color=None, clock_seconds_override=None, rotation_mode=0, blink_colon=False, alert_text_override=None):
         """ Builds a stadium-style scoreboard image for games in progress.
         """
-        from utils import image_utils
-        from PIL import Image
-        import os
-        from utils.data_utils import TEAM_COLORS
-        from test_layout import get_text_3x5_width, draw_text_3x5
 
         image_utils.clear_image(self.images['full'], self.draw['full'])
         
