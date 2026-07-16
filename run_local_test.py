@@ -1,4 +1,3 @@
-import sys
 from test_layout import build_mock_image
 
 test_live_nfl = {
