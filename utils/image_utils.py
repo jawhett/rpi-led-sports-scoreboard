@@ -19,7 +19,8 @@ def crop_image(image):
     # Create a new image object for the output image. Paste the cropped image onto the new image.
     cropped_image = Image.new('RGB', image.size, (0, 0, 0)) # Note that since we define this as RGB, there will be no transparency in the resulting image. Default to black.
     if image.mode in ('RGBA', 'LA') or (image.mode == 'P' and 'transparency' in image.info):
-        cropped_image.paste(image, (0, 0), image) # Paste using the image itself as the alpha mask
+        mask = image.convert('RGBA') if image.mode == 'P' else image
+        cropped_image.paste(image, (0, 0), mask) # Paste using the image itself as the alpha mask
     else:
         cropped_image.paste(image)
 
