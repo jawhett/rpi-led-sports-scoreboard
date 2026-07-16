@@ -1,0 +1,7 @@
+🧪 [testing improvement] Add tests for crop_image
+
+## Description
+
+🎯 **What:** The `crop_image` function in `utils/image_utils.py` lacked test coverage.
+📊 **Coverage:** This PR adds comprehensive unit tests verifying the behavior of `crop_image` across different image modes and edge cases, including `RGBA` images with transparency, completely transparent `RGBA` images, standard `RGB` images, `LA` images, and `P` (palette) images.
+✨ **Result:** Test coverage for `utils/image_utils.py` has been significantly improved. Furthermore, during the implementation of these tests, a hidden bug was discovered where pasting `P` mode images over themselves as an alpha mask caused a `ValueError`. This bug was successfully fixed by converting `P` mode image masks to `RGBA` prior to pasting.
