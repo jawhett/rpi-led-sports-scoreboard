@@ -79,14 +79,17 @@ def get_next_game(team):
     next_game_details = upcoming_games[0] if len(upcoming_games) > 0 else None
 
     if next_game_details:
+        start_datetime_utc = dt.strptime(next_game_details['startTimeUTC'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=tz.utc)
+        start_datetime_local = start_datetime_utc.astimezone(tz=None)
+
         # Put together a dictionary with needed details.
         next_game = {
             'home_or_away': 'away' if next_game_details['homeTeam']['abbrev'] != team else 'home',
             'opponent_abrv': next_game_details['homeTeam']['abbrev'] if next_game_details['homeTeam']['abbrev'] != team else next_game_details['awayTeam']['abbrev'],
-            'start_datetime_utc': dt.strptime(next_game_details['startTimeUTC'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=tz.utc),
-            'start_datetime_local': dt.strptime(next_game_details['startTimeUTC'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=tz.utc).astimezone(tz=None),
-            'is_today': True if dt.strptime(next_game_details['startTimeUTC'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=tz.utc).astimezone(tz=None).date() == cur_date or dt.strptime(next_game_details['startTimeUTC'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=tz.utc).astimezone(tz=None) < cur_datetime else False, # TODO: clean this up. Needed in case game is still going when date rolls over.
-            'has_started': True if next_game_details['gameState'] in ('LIVE', 'CRIT') else False
+            'start_datetime_utc': start_datetime_utc,
+            'start_datetime_local': start_datetime_local,
+            'is_today': start_datetime_local.date() == cur_date or start_datetime_local < cur_datetime, # Needed in case game is still going when date rolls over.
+            'has_started': next_game_details['gameState'] in ('LIVE', 'CRIT')
         }
         return(next_game)
     
