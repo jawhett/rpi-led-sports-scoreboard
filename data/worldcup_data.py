@@ -4,6 +4,8 @@ from datetime import timezone as tz
 import json
 import os
 import requests
+import concurrent.futures
+
 
 espn_headers = {
     'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
@@ -20,7 +22,48 @@ def get_games(date):
         data_json = response.json()
         
         if 'events' in data_json:
+            downloads = set()
+            # First pass: collect all unique logos that need downloading
             for event in data_json['events']:
+                comp = event['competitions'][0]
+                home_team = next(t for t in comp['competitors'] if t['homeAway'] == 'home')
+                away_team = next(t for t in comp['competitors'] if t['homeAway'] == 'away')
+
+                for team_data in [home_team, away_team]:
+                    abrv = team_data['team']['abbreviation'].upper()
+                    logo_url = team_data['team'].get('logo')
+                    if logo_url:
+                        logo_path = f'assets/images/WORLDCUP/teams/{abrv}.png'
+                        if not os.path.exists(logo_path):
+                            downloads.add((logo_url, logo_path, f"logo for {abrv}"))
+
+            league_logo_path = 'assets/images/WORLDCUP/league/WORLDCUP.png'
+            if not os.path.exists(league_logo_path):
+                leagues_data = data_json.get('leagues', [{}])
+                if leagues_data and leagues_data[0].get('logos'):
+                    league_logo_url = leagues_data[0]['logos'][0]['href']
+                    downloads.add((league_logo_url, league_logo_path, "WORLDCUP league logo"))
+
+            if downloads:
+                os.makedirs('assets/images/WORLDCUP/teams', exist_ok=True)
+                os.makedirs('assets/images/WORLDCUP/league', exist_ok=True)
+
+                def download_image(url, path, name):
+                    try:
+                        img_resp = requests.get(url, timeout=5)
+                        if img_resp.status_code == 200:
+                            with open(path, 'wb') as f:
+                                f.write(img_resp.content)
+                            print(f"Downloaded {name}")
+                    except Exception as e:
+                        print(f"Error downloading {name}: {e}")
+
+                with concurrent.futures.ThreadPoolExecutor(max_workers=min(10, len(downloads))) as executor:
+                    futures = [executor.submit(download_image, url, path, name) for url, path, name in downloads]
+                    concurrent.futures.wait(futures)
+
+            for event in data_json['events']:
+
                 comp = event['competitions'][0]
                 status_obj = comp['status']
                 status_name = status_obj['type']['name']
@@ -123,40 +166,6 @@ def get_games(date):
                             'team': event_team,
                             'type': 'goal' if is_goal else 'red_card'
                         })
-                
-                # Try downloading team logos if they don't exist
-                for team_data in [home_team, away_team]:
-                    abrv = team_data['team']['abbreviation'].upper()
-                    logo_url = team_data['team'].get('logo')
-                    if logo_url:
-                        # Make sure folder exists
-                        os.makedirs('assets/images/WORLDCUP/teams', exist_ok=True)
-                        logo_path = f'assets/images/WORLDCUP/teams/{abrv}.png'
-                        if not os.path.exists(logo_path):
-                            try:
-                                img_resp = requests.get(logo_url, timeout=5)
-                                if img_resp.status_code == 200:
-                                    with open(logo_path, 'wb') as f:
-                                        f.write(img_resp.content)
-                                    print(f"Downloaded logo for {abrv}")
-                            except Exception as e:
-                                print(f"Error downloading logo for {abrv}: {e}")
-                
-                # Try downloading league logo if it doesn't exist
-                try:
-                    os.makedirs('assets/images/WORLDCUP/league', exist_ok=True)
-                    league_logo_path = 'assets/images/WORLDCUP/league/WORLDCUP.png'
-                    if not os.path.exists(league_logo_path):
-                        leagues_data = data_json.get('leagues', [{}])
-                        if leagues_data and leagues_data[0].get('logos'):
-                            league_logo_url = leagues_data[0]['logos'][0]['href']
-                            img_resp = requests.get(league_logo_url, timeout=5)
-                            if img_resp.status_code == 200:
-                                with open(league_logo_path, 'wb') as f:
-                                    f.write(img_resp.content)
-                                print("Downloaded WORLDCUP league logo")
-                except Exception as e:
-                    print(f"Error downloading league logo: {e}")
                 
                 games.append({
                     'game_id': event['id'],
