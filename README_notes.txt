@@ -1,1 +1,1 @@
-Looked over what was requested and changed. The tests passed, visually and programmatically. Ready to record learnings!
+Refactored all game scenes to use the full unified canvas layout instead of partitioned left/center/right panels. Team logos are now placed appropriately within the full bounds, and scores use the larger bold font aligned directly under each respective team's logo. This matches the new layout defined in test_layout.py and simplifies UI rendering logic across the matrix.
