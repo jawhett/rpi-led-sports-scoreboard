@@ -1,8 +1,6 @@
-import os
 from ..scene import Scene
 from setup.matrix_setup import matrix, matrix_options
 from utils import image_utils
-from utils.data_utils import TEAM_COLORS
 
 from PIL import Image, ImageDraw
 from time import sleep
@@ -15,95 +13,29 @@ class GamesScene(Scene):
     """
     
     def __init__(self):
-        super().__init__()
+        """ Creates Image objects to be displayed on the matrix and ImageDraw objects allowing us to add logos, text, etc. to each image.
+        First runs init from generic Scene class.
+        """
 
-        self.settings = {}
-        self.alt_logos = {}
+        super().__init__()
 
         # Image objects.
         self.images = {
             # Helper images that each tackle of portion of the full image.
+            'left':     Image.new('RGB', (40, 30)), # 21 of 40 cols will be visible on matrix (cols 0-20) when not moving. This leaves a col of buffer before the centre.
+            'centre':   Image.new('RGB', (20, 30)),
+            'right':    Image.new('RGB', (40, 30)), # 21 of 40 cols will be visible on matrix (cols 43-63) when not moving. This leaves a col of buffer after the centre.
+            # Full image that gets displayed to matrix.
             'full':     Image.new('RGB', (matrix_options.cols, matrix_options.rows))
         }
 
         # ImageDraw objects associated with each of the above Image objects.
         self.draw = {
+            'left':     ImageDraw.Draw(self.images['left']),
+            'centre':   ImageDraw.Draw(self.images['centre']),
+            'right':    ImageDraw.Draw(self.images['right']),
             'full':     ImageDraw.Draw(self.images['full'])
         }
-
-    def draw_team_logo_or_name(self, game, home_or_away, rotation_mode):
-        import os
-        from PIL import Image
-        from utils import image_utils
-        abrv = game[f"{home_or_away}_abrv"]
-        
-        if home_or_away == 'away':
-            x_min, x_max = 1, 12
-        else:
-            x_min, x_max = 51, 62
-            
-        if rotation_mode % 2 == 1:
-            text_str = abrv
-            bbox = self.FONTS['sm_bold'].getbbox(text_str)
-            text_w = bbox[2] - bbox[0]
-            text_h = bbox[3] - bbox[1]
-            x = x_min + ((x_max - x_min + 1) - text_w) // 2
-            y = 1 + (9 - text_h) // 2
-            self.draw['full'].text((x, y), text_str, font=self.FONTS['sm_bold'], fill=self.COLOURS['white'])
-        else:
-            logo_path = f'assets/images/{self.LEAGUE}/teams/{abrv}.png' if abrv not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{abrv}_{self.alt_logos[abrv]}.png'
-            if os.path.exists(logo_path):
-                try:
-                    logo = Image.open(logo_path)
-                    logo = image_utils.crop_image(logo)
-                    logo.thumbnail((12, 9))
-                    x = x_min if home_or_away == 'away' else 63 - logo.width
-                    y = (10 - logo.height) // 2
-                    self.images['full'].paste(logo, (x, max(0, y)))
-                except Exception as e:
-                    pass
-
-    def filter_games(self, games):
-        if not games:
-            return games
-        if getattr(self, 'display_only_games', None) is not None:
-            return [g for g in games if g['game_id'] in self.display_only_games]
-        elif getattr(self, 'display_only_live', False):
-            filtered = []
-            import datetime
-            now = datetime.datetime.now().astimezone()
-            league = getattr(self, 'LEAGUE', 'NBA')
-            for g in games:
-                # Is live?
-                is_live = False
-                if league == 'MLB':
-                    is_live = g.get('status') in ['Live', 'Delayed']
-                elif league == 'PWHL':
-                    is_live = str(g.get('status')) == '2'
-                else:
-                    is_live = g.get('status_code') == 2
-                
-                if is_live:
-                    filtered.append(g)
-                    continue
-                    
-                # Is recently completed?
-                is_final = False
-                if league == 'MLB':
-                    is_final = g.get('status') == 'Final'
-                elif league == 'PWHL':
-                    is_final = str(g.get('status')) == '3'
-                else:
-                    is_final = g.get('status_code') == 3
-                    
-                if is_final:
-                    start_time = g.get('start_datetime_local')
-                    if start_time:
-                        elapsed_hours = (now - start_time).total_seconds() / 3600.0
-                        if 0 < elapsed_hours < 5.0:
-                            filtered.append(g)
-            return filtered
-        return games
 
     def parse_clock_str(self, clock_str):
         if not clock_str:
@@ -337,29 +269,42 @@ class GamesScene(Scene):
 
 
     def add_team_logos_to_image(self, game):
+        """ Adds home and away team logos to the right and left images respectively. 
+        Uses alt logos as specified in config.yaml.
+
+        Args:
+            game (dict): Dictionary with all details of a specific game.
+        """
+        
         # Determine the path of the image to load. Standard path or alt logo.
-        away_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["away_abrv"]}.png' if game["away_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["away_abrv"]}_{self.alt_logos[game["away_abrv"]]}.png'
+        away_logo_path = f'assets/images/{self.LEAGUE}/teams/{game['away_abrv']}.png' if game['away_abrv'] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game['away_abrv']}_{self.alt_logos[game['away_abrv']]}.png'
         
         # Load, crop, and resize the away team logo.
         away_logo = Image.open(away_logo_path)
         away_logo = image_utils.crop_image(away_logo)
-        away_logo.thumbnail((24, 16))
+        away_logo.thumbnail((21, self.images['left'].height))
 
         # Determine placement and add logo to the left image.
-        away_placement_in_image = ((32 - away_logo.width) // 2, max(0, (18 - away_logo.height) // 2))
-        self.images['full'].paste(away_logo, away_placement_in_image)
+        away_placement_in_image = (
+            self.images['left'].width - away_logo.width if away_logo.width > 21 else 19 + math.ceil((21 - away_logo.width) / 2), # Right align logo within the left image if logo is wider than image, otherwise centre.
+            math.floor((self.images['left'].height - away_logo.height) / 2) # Middle align hight within left image (when logo is shorter than max image height). 
+        )
+        self.images['left'].paste(away_logo, away_placement_in_image)
 
         # Determine the path of the image to load. Standard path or alt logo.
-        home_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["home_abrv"]}.png' if game["home_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["home_abrv"]}_{self.alt_logos[game["home_abrv"]]}.png'
+        home_logo_path = f'assets/images/{self.LEAGUE}/teams/{game['home_abrv']}.png' if game['home_abrv'] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game['home_abrv']}_{self.alt_logos[game['home_abrv']]}.png'
 
         # Load, crop, and resize the home team logo.
         home_logo = Image.open(home_logo_path)
         home_logo = image_utils.crop_image(home_logo)
-        home_logo.thumbnail((24, 16))
+        home_logo.thumbnail((21, self.images['right'].height))
 
         # Determine placement and add logo to the right image.
-        home_placement_in_image = (32 + (32 - home_logo.width) // 2, max(0, (18 - home_logo.height) // 2))
-        self.images['full'].paste(home_logo, home_placement_in_image)
+        home_placement_in_image = (
+            0 if home_logo.width > 21 else math.floor((21 - home_logo.width) / 2), # Left align logo within the right image if logo is wider than image, otherwise centre.
+            math.floor((self.images['right'].height - home_logo.height) / 2) # Middle align hight within right image (when logo is shorter than max image height). 
+        )
+        self.images['right'].paste(home_logo, home_placement_in_image)
 
 
     def add_score_to_image(self, game, overriding_team=None, colour_override=None):
@@ -372,9 +317,9 @@ class GamesScene(Scene):
             colour_override (tuple): Colour that the overriding_team's score should appear in. Defaults to None.
         """
 
-        # First, default both team's score colour to their team colour (or white).
-        colour_away = TEAM_COLORS.get(game['away_abrv'], self.COLOURS['white'])
-        colour_home = TEAM_COLORS.get(game['home_abrv'], self.COLOURS['white'])
+        # First, default both team's score colour to white.
+        colour_away = self.COLOURS['white']
+        colour_home = self.COLOURS['white']
 
         # Check one or both teams scored. Set the team's starting colour to colour_override if that team scored.
         if self.settings['score_alerting']['score_coloured']:
@@ -385,19 +330,18 @@ class GamesScene(Scene):
         away_score_digits = len(str(game['away_score']))
         home_score_digits = len(str(game['home_score']))
         
+        # If both scores are <10, display large numbers and a hyphen in set locations.
         if max(away_score_digits, home_score_digits) == 1:
-            self.draw['centre'].text((8, 18), "-", font=self.FONTS['sm_bold'], fill=self.COLOURS['white'])
-            self.draw['centre'].text((0, 15), str(game['away_score']), font=self.FONTS['lrg_bold'], fill=colour_away)
-            self.draw['centre'].text((12, 15), str(game['home_score']), font=self.FONTS['lrg_bold'], fill=colour_home)
-        elif max(away_score_digits, home_score_digits) <= 2:
-            self.draw['centre'].text((10, 18), "-", font=self.FONTS['sm_bold'], fill=self.COLOURS['white'])
+            # Add the hyphen to the centre image.
+            self.draw['centre'].text((8, 19), "-", font=self.FONTS['sm_bold'], fill=self.COLOURS['white'])
 
-            away_score_col_start = 2 if away_score_digits == 1 else (-2 if str(game['away_score'])[0] != '1' else -1)
-            self.draw['centre'].text((away_score_col_start, 15), str(game['away_score']), font=self.FONTS['lrg_bold'], fill=colour_away)
+            # Add the scores to the centre image with the colour determined above.
+            self.draw['centre'].text((0, 16), str(game['away_score']), font=self.FONTS['lrg_bold'], fill=colour_away)
+            self.draw['centre'].text((12, 16), str(game['home_score']), font=self.FONTS['lrg_bold'], fill=colour_home)
 
-            home_score_col_start = 14 if home_score_digits == 1 else (13 if str(game['home_score'])[0] != '1' else 14)
-            self.draw['centre'].text((home_score_col_start, 15), str(game['home_score']), font=self.FONTS['lrg_bold'], fill=colour_home)
+        # Otherwise, smaller numbers and no hyphen.
         else:
+            # Determine the larger score. Use to determine vertical placement, putting the higher score higher up.
             if game['away_score'] >= game['home_score']:
                 away_team_row_start = 17
                 home_team_row_start = 23
@@ -405,9 +349,11 @@ class GamesScene(Scene):
                 away_team_row_start = 23
                 home_team_row_start = 17
 
+            # Add away score to centre image.
             away_score_col_start = -1 if str(game['away_score'])[0] == '1' else 0
             self.draw['centre'].text((away_score_col_start, away_team_row_start), str(game['away_score']), font=self.FONTS['sm'], fill=colour_away)
 
+            # Dynamically determin placement of home team score based on number of digits. Add to centre image.
             home_score_col_start = 20 - (5 * home_score_digits - 1)
             self.draw['centre'].text((home_score_col_start, home_team_row_start), str(game['home_score']), font=self.FONTS['sm'], fill=colour_home)
 
@@ -431,66 +377,131 @@ class GamesScene(Scene):
 
 
     def fade_score_change(self, game):
-        # Flash a border around the matrix 3 times
-        from setup.matrix_setup import matrix
-        for _ in range(3):
-            self.build_game_in_progress_image(game, score_fade_color=self.COLOURS['red_bright'])
-            self.draw['full'].rectangle([(0, 0), (63, 31)], outline=self.COLOURS['red_bright'])
-            matrix.SetImage(self.images['full'])
-            sleep(0.15)
+        """ Fades score from red to white after a goal is scored.
+        Achieved by rapidly calculating a new colour and re-adding the score to the centre image before displaying again.
 
-            self.build_game_in_progress_image(game, score_fade_color=self.COLOURS['white'])
-            matrix.SetImage(self.images['full'])
-            sleep(0.15)
+        Args:
+            game (dict): Dictionary with all details of a specific game.
+        """
 
         # Stay red for a short time before fading.
-        self.build_game_in_progress_image(game, score_fade_color=self.COLOURS['red_bright'])
-        matrix.SetImage(self.images['full'])
         sleep(0.5)
 
         # Loop over the colour between red and white.
-        for n in range(self.COLOURS['red'][2], self.COLOURS['white'][2], 5):
-            self.build_game_in_progress_image(game, score_fade_color=(255, n, n))
+        for n in range(self.COLOURS['red'][2], self.COLOURS['white'][2]):
+            # Add score to the centre image, with the new colour.
+            self.add_score_to_image(game, overriding_team=game['scoring_team'], colour_override=(255, n, n))
+            
+            # Rebuild the full image and display on matrix.
+            self.images['full'].paste(self.images['left'], (-19, 1))
+            self.images['full'].paste(self.images['centre'], (22, 1))
+            self.images['full'].paste(self.images['right'], (43, 1))
             matrix.SetImage(self.images['full'])
-            sleep(0.015)
+            sleep(0.015) # Sleep for a short time to pace animation.
+
+
     def transition_image(self, direction, image_already_combined=False):
+        """ Transitions between image and blank screen or vise versa.
+        Practically, this means the transition between games (one direction). Transition is set in config.yaml.
+
+        Args:
+            direction (str): Direction of the transition. 'in' or 'out'.
+            image_already_combined (bool, optional): If the image was build directly to the full image. If true, skip building it here. Defaults to False.
+        """
+
         # 'Cut' transition.
         if self.settings['transition'] == 'cut':
             if direction == 'in':
+                # Build combined image if needed.
+                if not image_already_combined:
+                    self.images['full'].paste(self.images['left'], (-19, 1))
+                    self.images['full'].paste(self.images['centre'], (22, 1))
+                    self.images['full'].paste(self.images['right'], (43, 1))
+                
+                # Since there's no animation of any sort, an out transition is not needed. Simply display the image on the matrix.
                 matrix.SetImage(self.images['full'])
         
         # 'Fade' transition.
         elif self.settings['transition'] == 'fade':
+            # Define the 'fade rule', that is the steps between 0 (transparent) and 255 (opaque).
             fade = (255, -1, -15) if direction == 'in' else (0, 256, 15)
+
+            # Build combined image if needed.
+            if not image_already_combined:
+                self.images['full'].paste(self.images['left'], (-19, 1))
+                self.images['full'].paste(self.images['centre'], (22, 1))
+                self.images['full'].paste(self.images['right'], (43, 1))
+
+            # Loop over opacities to apply to image.
             for overlay_opacity in range(*fade):
+                # Create faded image to display on matrix.
                 faded_for_display_image = self.create_faded_image(self.images['full'], overlay_opacity)
+
+                # Display and sleep for a short time to pace the animation.
                 matrix.SetImage(faded_for_display_image)
                 sleep(0.025)
+
+            # Hold a moment with nothing displayed after fading out.
             if direction == 'out':
                 sleep(0.2)
 
-        # 'Modern' transition (slide).
+        # 'Modern' transition.
         elif self.settings['transition'] == 'modern':
+            # Define the 'fade rule', that is the steps between 0 (transparent) and 255 (opaque).
             fade = (255, -1, -15) if direction == 'in' else (0, 256, 15)
-            combined_image = self.images['full'].copy()
+
+            # If the final image already exists, make a copy for later use.
+            if image_already_combined:
+                combined_image = self.images['full'].copy()
 
             if direction == 'in':
+                # Loop over opacities to apply to image and horizontal movement via col_offset.
                 for overlay_opacity, col_offset in zip(range(*fade), range(-len(range(*fade))+1, 1, 1)):
+                    # Rebuild full image with offsets. Will first need to clear the image. This will also ensure there's no artifacts between loops of animation.    
                     image_utils.clear_image(self.images['full'], self.draw['full'])
-                    self.images['full'].paste(combined_image, (col_offset, 0))
+
+                    # If the image has not already been combined, add each sub-image to the full with a col_offset applied.
+                    if not image_already_combined:                        
+                        self.images['full'].paste(self.images['left'], (-19 + col_offset, 1))
+                        self.images['full'].paste(self.images['centre'], (22 + col_offset, 1))
+                        self.images['full'].paste(self.images['right'], (43 + col_offset, 1))          
+                    # Otherwise, copy the combined_image copied above to full with a col_offset applied.
+                    else:
+                        self.images['full'].paste(combined_image, (col_offset, 0))
+
+                    # Create faded image to display on matrix.
                     faded_for_display_image = self.create_faded_image(self.images['full'], overlay_opacity)
+
+                    # Display and sleep for a short time to pace the animation.
                     matrix.SetImage(faded_for_display_image)
                     sleep(0.025)
             
             elif direction == 'out':
+                # Loop over opacities to apply to image and horizontal movement via col_offset.
                 for overlay_opacity, col_offset in zip(range(*fade), range(0, len(range(*fade)), 1)):
+                    # Rebuild full image with offsets. Will first need to clear the image. This will also ensure there's no artifacts between loops of animation.    
                     image_utils.clear_image(self.images['full'], self.draw['full'])
-                    self.images['full'].paste(combined_image, (col_offset, 0))
+                    
+                    # If the image has not already been combined, add each sub-image to the full with a col_offset applied.
+                    if not image_already_combined:                        
+                        self.images['full'].paste(self.images['left'], (-19 + col_offset, 1))
+                        self.images['full'].paste(self.images['centre'], (22 + col_offset, 1))
+                        self.images['full'].paste(self.images['right'], (43 + col_offset, 1))       
+                    # Otherwise, copy the combined_image copied above to full with a col_offset applied.
+                    else:
+                        self.images['full'].paste(combined_image, (col_offset, 0))
+
+                    # Create faded image to display on matrix.
                     faded_for_display_image = self.create_faded_image(self.images['full'], overlay_opacity)
+
+                    # Display and sleep for a short time to pace the animation.
                     matrix.SetImage(faded_for_display_image)
                     sleep(0.025)
+
+                # Hold a moment with nothing displayed.
                 sleep(0.2)
 
+        # On way out of 'out' transitions, reset all images to black for next image build.
         if direction == 'out':
             for image, image_draw in zip(self.images.values(), self.draw.values()):
                 image_utils.clear_image(image, image_draw)

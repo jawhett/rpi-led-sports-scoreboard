@@ -1,4 +1,3 @@
-import os
 from .games_scene import GamesScene
 from setup.matrix_setup import matrix
 import data.mlb_data
@@ -20,94 +19,6 @@ class MLBGamesScene(GamesScene):
         
         super().__init__()
         self.LEAGUE = 'MLB'
-        
-        # Local sub-images for b665907 layout style compatibility
-        from PIL import Image, ImageDraw
-        self.images['left'] = Image.new('RGB', (40, 30))
-        self.images['centre'] = Image.new('RGB', (20, 30))
-        self.images['right'] = Image.new('RGB', (40, 30))
-        
-        self.draw['left'] = ImageDraw.Draw(self.images['left'])
-        self.draw['centre'] = ImageDraw.Draw(self.images['centre'])
-        self.draw['right'] = ImageDraw.Draw(self.images['right'])
-    def add_team_logos_to_image(self, game, rotation_mode=0):
-        """ Adds home and away team logos or text abbreviations to side panels.
-        """
-        import math
-        from PIL import Image, ImageDraw
-        from utils import image_utils
-        
-        # Clear left and right images
-        self.images['left'] = Image.new('RGB', (40, 30))
-        self.images['right'] = Image.new('RGB', (40, 30))
-        self.draw['left'] = ImageDraw.Draw(self.images['left'])
-        self.draw['right'] = ImageDraw.Draw(self.images['right'])
-
-        # Load, crop, and resize the away team logo or text
-        if rotation_mode == 1:
-            text = game['away_abrv']
-            bbox = self.draw['left'].textbbox((0, 0), text, font=self.fonts['big'])
-            w = bbox[2] - bbox[0]
-            h = bbox[3] - bbox[1]
-            x = math.floor((22 - w) / 2)
-            y = math.floor((self.images['left'].height - h) / 2) - 2
-            self.draw['left'].text((x, y), text, fill=self.COLOURS['white'], font=self.fonts['big'])
-        else:
-            away_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["away_abrv"]}.png' if game["away_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["away_abrv"]}_{self.alt_logos[game["away_abrv"]]}.png'
-            if os.path.exists(away_logo_path):
-                try:
-                    away_logo = Image.open(away_logo_path)
-                    away_logo = image_utils.crop_image(away_logo)
-                    aspect = away_logo.width / away_logo.height
-                    if aspect > 1.5:
-                        away_logo.thumbnail((26, 16))
-                    else:
-                        away_logo.thumbnail((21, 21))
-                    away_placement_in_image = (
-                        math.floor((22 - away_logo.width) / 2),
-                        math.floor((self.images['left'].height - away_logo.height) / 2)
-                    )
-                    self.images['left'].paste(away_logo, away_placement_in_image)
-                except Exception:
-                    pass
-
-        # Load, crop, and resize the home team logo or text
-        if rotation_mode == 1:
-            text = game['home_abrv']
-            bbox = self.draw['right'].textbbox((0, 0), text, font=self.fonts['big'])
-            w = bbox[2] - bbox[0]
-            h = bbox[3] - bbox[1]
-            x = math.floor((22 - w) / 2)
-            y = math.floor((self.images['right'].height - h) / 2) - 2
-            self.draw['right'].text((x, y), text, fill=self.COLOURS['white'], font=self.fonts['big'])
-        else:
-            home_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["home_abrv"]}.png' if game["home_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["home_abrv"]}_{self.alt_logos[game["home_abrv"]]}.png'
-            if os.path.exists(home_logo_path):
-                try:
-                    home_logo = Image.open(home_logo_path)
-                    home_logo = image_utils.crop_image(home_logo)
-                    aspect = home_logo.width / home_logo.height
-                    if aspect > 1.5:
-                        home_logo.thumbnail((26, 16))
-                    else:
-                        home_logo.thumbnail((21, 21))
-                    home_placement_in_image = (
-                        math.floor((22 - home_logo.width) / 2),
-                        math.floor((self.images['right'].height - home_logo.height) / 2)
-                    )
-                    self.images['right'].paste(home_logo, home_placement_in_image)
-                except Exception:
-                    pass
-
-    def transition_image(self, direction, image_already_combined=False):
-        """ Combines left, centre, and right sub-images onto the full canvas before executing transitions.
-        """
-        if not image_already_combined:
-            self.images['full'].paste(self.images['left'], (0, 0))
-            self.images['full'].paste(self.images['centre'], (22, 0))
-            self.images['full'].paste(self.images['right'], (42, 0))
-        super().transition_image(direction, image_already_combined=True)
-
 
 
     def display_scene(self):
@@ -116,9 +27,8 @@ class MLBGamesScene(GamesScene):
         """
 
         # Refresh config and load to settings key.
-        config_yaml = data_utils.read_yaml('config.yaml')
-        self.settings = config_yaml['scene_settings'][self.LEAGUE.lower()]['games']
-        self.alt_logos = config_yaml['alt_logos'][self.LEAGUE.lower()] if config_yaml['alt_logos'][self.LEAGUE.lower()] else {} # Note the teams with an alternative logo per config.yaml.
+        self.settings = data_utils.read_yaml('config.yaml')['scene_settings'][self.LEAGUE.lower()]['games']
+        self.alt_logos = data_utils.read_yaml('config.yaml')['alt_logos'][self.LEAGUE.lower()] if data_utils.read_yaml('config.yaml')['alt_logos'][self.LEAGUE.lower()] else {} # Note the teams with an alternative logo per config.yaml.
 
         # Determine which days should be displayed. Will generate a list with one or two elements. Two means rollover time and yesterdays games should be displayed.
         dates_to_display = date_utils.determine_dates_to_display_games(self.settings['rollover']['rollover_start_time_local'], self.settings['rollover']['rollover_end_time_local'])
@@ -134,32 +44,14 @@ class MLBGamesScene(GamesScene):
                 }
         
         # Get current day game data. Save this for future reference.
-        current_games = data.mlb_data.get_games(dates_to_display[-1])
-        from main import inject_espn_odds
-        if display_yesterday and hasattr(self, 'data_previous_day'):
-            inject_espn_odds(self.data_previous_day['games'], 'baseball', 'mlb')
-        inject_espn_odds(current_games, 'baseball', 'mlb')
-
         self.data = {
             'games_previous_pull': self.data['games'] if hasattr(self, 'data') else None, # If this is the first time this is run, we'd expect self.data to not exist.
-            'games': current_games,
+            'games': data.mlb_data.get_games(dates_to_display[-1]), # Get data for current day. Current day will always be the last element of dates_to_display.
         }
 
         # If there are games to display from yesterday (and setting is enabled), build and display splash image (if enabled), then images for those games.
-        display_behavior = config_yaml.get('display_behavior', {})
-        if display_behavior.get('skip_empty_scenes', True):
-            has_games_yesterday = False
-            has_games_today = False
-            if display_yesterday and hasattr(self, 'data_previous_day'):
-                has_games_yesterday = len(self.filter_games(self.data_previous_day.get('games', []))) > 0
-            if hasattr(self, 'data') and self.data is not None:
-                has_games_today = len(self.filter_games(self.data.get('games', []) if self.data else [])) > 0
-
-            if not has_games_yesterday and not has_games_today:
-                return
-
-        if display_yesterday and self.settings['rollover']['show_completed_games_until_rollover_end_time'] and not hasattr(self, 'display_only_live') and not hasattr(self, 'display_only_games'):
-            if self.settings['splash']['display_splash'] and not hasattr(self, 'display_only_live') and not hasattr(self, 'display_only_games'):
+        if display_yesterday and self.settings['rollover']['show_completed_games_until_rollover_end_time']:
+            if self.settings['splash']['display_splash']:
                 self.display_splash_image(len(self.data_previous_day['games']), date=dates_to_display[0])
             self.display_game_images(self.data_previous_day['games'], date=dates_to_display[0])
 
@@ -183,7 +75,7 @@ class MLBGamesScene(GamesScene):
                             game['scoring_team'] = 'home'
                     
         # Display splash (if enabled) for current day.
-        if self.settings['splash']['display_splash'] and not hasattr(self, 'display_only_live') and not hasattr(self, 'display_only_games'):
+        if self.settings['splash']['display_splash']:
             self.display_splash_image(len(self.data['games']), date=dates_to_display[-1])
         
         # Display game image(s) for current day.
@@ -206,7 +98,6 @@ class MLBGamesScene(GamesScene):
                                                                                                
 
     def display_game_images(self, games, date=None):
-        games = self.filter_games(games)
         """ Builds and displays images on the matrix for each game in games.
 
         Args:
@@ -258,7 +149,7 @@ class MLBGamesScene(GamesScene):
             self.transition_image(direction='out', image_already_combined=True)
 
 
-    def build_game_in_progress_image(self, game, score_fade_color=None, clock_seconds_override=None, rotation_mode=0, blink_colon=False, alert_text_override=None):
+    def build_game_in_progress_image(self, game):
         """ Builds image for when the game is in progress.
         Includes team logos, score, period, and time remaining.
 
@@ -267,14 +158,13 @@ class MLBGamesScene(GamesScene):
         """
 
         # First, add the team logos to the left and right images.
-        self.add_team_logos_to_image(game, rotation_mode=rotation_mode)
+        self.add_team_logos_to_image(game)
 
         # Add the inning to the centre image.
         self.add_playing_period_to_image(game) # This exists in parent class, but is overridden here due to baseball using innings.
 
         # Add the current score to the centre image, noting if either team scored since previous data pull.
-        score_color = self.COLOURS['red'] if score_fade_color is None else score_fade_color
-        self.add_score_to_image(game, overriding_team=game['scoring_team'], colour_override=score_color)
+        self.add_score_to_image(game, overriding_team=game['scoring_team'], colour_override=self.COLOURS['red'])
 
         if self.settings['display_outs_and_bases']:
             # Add outs identifier to the centre image.

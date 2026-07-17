@@ -29,9 +29,8 @@ class NHLGamesScene(GamesScene):
         """
 
         # Refresh config and load to settings key.
-        config_yaml = data_utils.read_yaml('config.yaml')
-        self.settings = config_yaml['scene_settings'][self.LEAGUE.lower()]['games']
-        self.alt_logos = config_yaml['alt_logos'][self.LEAGUE.lower()] if config_yaml['alt_logos'][self.LEAGUE.lower()] else {} # Note the teams with an alternative logo per config.yaml.
+        self.settings = data_utils.read_yaml('config.yaml')['scene_settings'][self.LEAGUE.lower()]['games']
+        self.alt_logos = data_utils.read_yaml('config.yaml')['alt_logos'][self.LEAGUE.lower()] if data_utils.read_yaml('config.yaml')['alt_logos'][self.LEAGUE.lower()] else {} # Note the teams with an alternative logo per config.yaml.
 
         # Determine which days should be displayed. Will generate a list with one or two elements. Two means rollover time and yesterdays games should be displayed.
         dates_to_display = date_utils.determine_dates_to_display_games(self.settings['rollover']['rollover_start_time_local'], self.settings['rollover']['rollover_end_time_local'])
@@ -65,20 +64,8 @@ class NHLGamesScene(GamesScene):
         }
 
         # If there are games to display from yesterday (and setting is enabled), build and display splash image (if enabled), then images for those games.
-        display_behavior = config_yaml.get('display_behavior', {})
-        if display_behavior.get('skip_empty_scenes', True):
-            has_games_yesterday = False
-            has_games_today = False
-            if display_yesterday and hasattr(self, 'data_previous_day'):
-                has_games_yesterday = len(self.filter_games(self.data_previous_day.get('games', []))) > 0
-            if hasattr(self, 'data') and self.data is not None:
-                has_games_today = len(self.filter_games(self.data.get('games', []) if self.data else [])) > 0
-
-            if not has_games_yesterday and not has_games_today:
-                return
-
-        if display_yesterday and self.settings['rollover']['show_completed_games_until_rollover_end_time'] and not hasattr(self, 'display_only_live') and not hasattr(self, 'display_only_games'):
-            if self.settings['splash']['display_splash'] and not hasattr(self, 'display_only_live') and not hasattr(self, 'display_only_games'):
+        if display_yesterday and self.settings['rollover']['show_completed_games_until_rollover_end_time']:
+            if self.settings['splash']['display_splash']:
                 self.display_splash_image(len(self.data_previous_day['games']), date=dates_to_display[0])
             self.display_game_images(self.data_previous_day['games'], date=dates_to_display[0])
 
@@ -102,7 +89,7 @@ class NHLGamesScene(GamesScene):
                             game['scoring_team'] = 'home'
                     
         # Display splash (if enabled) for current day.
-        if self.settings['splash']['display_splash'] and not hasattr(self, 'display_only_live') and not hasattr(self, 'display_only_games'):
+        if self.settings['splash']['display_splash']:
             self.display_splash_image(len(self.data['games']), date=dates_to_display[-1])
         
         # Display game image(s) for current day.
@@ -125,7 +112,6 @@ class NHLGamesScene(GamesScene):
                                                                                                
 
     def display_game_images(self, games, date=None):
-        games = self.filter_games(games)
         """ Builds and displays images on the matrix for each game in games.
 
         Args:
@@ -138,7 +124,7 @@ class NHLGamesScene(GamesScene):
             for game in games:
                 # If the game has yet to begin, build the game not started image.
                 if game['status'] in ['FUT', 'PRE']:
-                    duration = max(12.0, self.settings['game_display_duration'] * 4)
+                    duration = self.settings['game_display_duration']
                     elapsed = 0.0
                     step = 1.0
                     
@@ -176,7 +162,7 @@ class NHLGamesScene(GamesScene):
                         if game['scoring_team']:
                             self.fade_score_change(game, clock_seconds=clock_seconds)
                     
-                    duration = max(12.0, self.settings['game_display_duration'] * 4)
+                    duration = self.settings['game_display_duration']
                     elapsed = 0.0
                     step = 1.0
                     
@@ -208,15 +194,37 @@ class NHLGamesScene(GamesScene):
             sleep(self.settings['game_display_duration'])
             self.transition_image(direction='out', image_already_combined=True)
 
-    def build_game_in_progress_image(self, game, score_fade_color=None, clock_seconds_override=None, rotation_mode=0, blink_colon=False, alert_text_override=None):
+    def build_game_in_progress_image(self, game, score_fade_color=None, clock_seconds_override=None, blink_colon=False):
         """ Builds a stadium-style scoreboard image for games in progress.
         """
-
         image_utils.clear_image(self.images['full'], self.draw['full'])
         
-        # 1 & 2. Draw Team Logos or Names (alternating)
-        self.draw_team_logo_or_name(game, 'away', rotation_mode)
-        self.draw_team_logo_or_name(game, 'home', rotation_mode)
+        # 1. Draw Away Team Logo
+        away_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["away_abrv"]}.png' if game["away_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["away_abrv"]}_{self.alt_logos[game["away_abrv"]]}.png'
+        if os.path.exists(away_logo_path):
+            try:
+                away_logo = Image.open(away_logo_path)
+                away_logo = image_utils.crop_image(away_logo)
+                away_logo.thumbnail((22, 16))
+                x = (24 - away_logo.width) // 2
+                y = (15 - away_logo.height) // 2
+                self.images['full'].paste(away_logo, (x, y))
+            except Exception as e:
+                print(f"Error loading logo {away_logo_path}: {e}")
+
+        # 2. Draw Home Team Logo
+        home_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["home_abrv"]}.png' if game["home_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["home_abrv"]}_{self.alt_logos[game["home_abrv"]]}.png'
+        if os.path.exists(home_logo_path):
+            try:
+                home_logo = Image.open(home_logo_path)
+                home_logo = image_utils.crop_image(home_logo)
+                home_logo.thumbnail((22, 16))
+                x = 40 + (24 - home_logo.width) // 2
+                y = (15 - home_logo.height) // 2
+                self.images['full'].paste(home_logo, (x, y))
+            except Exception as e:
+                print(f"Error loading logo {home_logo_path}: {e}")
+
         # 3. Draw Clock (top center, yellow - y=0)
         clock_str = ""
         if game['is_intermission']:
@@ -263,7 +271,7 @@ class NHLGamesScene(GamesScene):
             w = len(str(away_score)) * 7
         else:
             away_font = self.FONTS['lrg_bold']
-            y_offset = 15
+            y_offset = 16
             w = len(str(away_score)) * 8
         x = 12 - w // 2
         
@@ -283,7 +291,7 @@ class NHLGamesScene(GamesScene):
             w = len(str(home_score)) * 7
         else:
             home_font = self.FONTS['lrg_bold']
-            y_offset = 15
+            y_offset = 16
             w = len(str(home_score)) * 8
         x = 51 - w // 2
         
@@ -424,7 +432,7 @@ class NHLGamesScene(GamesScene):
             w = len(str(away_score)) * 7
         else:
             away_font = self.FONTS['lrg_bold']
-            y_offset = 15
+            y_offset = 16
             w = len(str(away_score)) * 8
         x = 12 - w // 2
         self.draw['full'].text((x, y_offset), str(away_score), font=away_font, fill=color_away)
@@ -436,7 +444,7 @@ class NHLGamesScene(GamesScene):
             w = len(str(home_score)) * 7
         else:
             home_font = self.FONTS['lrg_bold']
-            y_offset = 15
+            y_offset = 16
             w = len(str(home_score)) * 8
         x = 51 - w // 2
         self.draw['full'].text((x, y_offset), str(home_score), font=home_font, fill=color_home)
@@ -461,34 +469,34 @@ class NHLGamesScene(GamesScene):
 
         # If intermission, add "INT" to the image.
         if game['is_intermission']:
-            self.draw['full'].text((1, 7), 'INT', font=self.FONTS['med'], fill=self.COLOURS['white'])
+            self.draw['centre'].text((1, 7), 'INT', font=self.FONTS['med'], fill=self.COLOURS['white'])
 
         # If the first period, add "1st" to the image.
         if game['period_num'] == 1:
-            self.draw['full'].text((4, -1), '1', font=self.FONTS['med'], fill=self.COLOURS['white'])
-            self.draw['full'].text((8, -1), 's', font=self.FONTS['sm'], fill=self.COLOURS['white'])
-            self.draw['full'].text((12, -1), 't', font=self.FONTS['sm'], fill=self.COLOURS['white'])
+            self.draw['centre'].text((4, -1), '1', font=self.FONTS['med'], fill=self.COLOURS['white'])
+            self.draw['centre'].text((8, -1), 's', font=self.FONTS['sm'], fill=self.COLOURS['white'])
+            self.draw['centre'].text((12, -1), 't', font=self.FONTS['sm'], fill=self.COLOURS['white'])
 
         # If the second period, add "2nd" to the image.
         elif game['period_num'] == 2:
-            self.draw['full'].text((3, -1), '2', font=self.FONTS['med'], fill=self.COLOURS['white'])
-            self.draw['full'].text((9, -1), 'n', font=self.FONTS['sm'], fill=self.COLOURS['white'])
-            self.draw['full'].text((13, -1), 'd', font=self.FONTS['sm'], fill=self.COLOURS['white'])
+            self.draw['centre'].text((3, -1), '2', font=self.FONTS['med'], fill=self.COLOURS['white'])
+            self.draw['centre'].text((9, -1), 'n', font=self.FONTS['sm'], fill=self.COLOURS['white'])
+            self.draw['centre'].text((13, -1), 'd', font=self.FONTS['sm'], fill=self.COLOURS['white'])
 
         # If the third period, add "3rd" to the image.
         elif game['period_num'] == 3:
-            self.draw['full'].text((3, -1), '3', font=self.FONTS['med'], fill=self.COLOURS['white'])
-            self.draw['full'].text((9, -1), 'r', font=self.FONTS['sm'], fill=self.COLOURS['white'])
-            self.draw['full'].text((13, -1), 'd', font=self.FONTS['sm'], fill=self.COLOURS['white'])
+            self.draw['centre'].text((3, -1), '3', font=self.FONTS['med'], fill=self.COLOURS['white'])
+            self.draw['centre'].text((9, -1), 'r', font=self.FONTS['sm'], fill=self.COLOURS['white'])
+            self.draw['centre'].text((13, -1), 'd', font=self.FONTS['sm'], fill=self.COLOURS['white'])
 
         # If in shootout or first OT, add that to the image.
         elif game['period_type'] == 'SO' or (game['period_type'] == 'OT' and game['period_num'] == 4):
-            self.draw['full'].text((4, -1), game['period_type'], font=self.FONTS['med'], fill=self.COLOURS['white'])
+            self.draw['centre'].text((4, -1), game['period_type'], font=self.FONTS['med'], fill=self.COLOURS['white'])
 
         # Otherwise, we're in 2OT, or later. Calculate the number of OT periods and add that to the image.
         elif game['period_type'] == 'OT':
             per = f'{game['period_num'] - 3}{game['period_type']}'
-            self.draw['full'].text((1, -1), per, font=self.FONTS['med'], fill=self.COLOURS['white'])
+            self.draw['centre'].text((1, -1), per, font=self.FONTS['med'], fill=self.COLOURS['white'])
 
 
     def add_final_playing_period_to_image(self, game):
@@ -500,12 +508,12 @@ class NHLGamesScene(GamesScene):
 
         # If game ended in a SO or the first OT, add that to the centre image.
         if game['period_type'] == 'SO' or (game['period_type'] == 'OT' and game['period_num'] == 4): # If the game ended in single OT a SO.
-            self.draw['full'].text((4, 8), game['period_type'], font=self.FONTS['med'], fill=self.COLOURS['white'])
+            self.draw['centre'].text((4, 8), game['period_type'], font=self.FONTS['med'], fill=self.COLOURS['white'])
 
         # Or if in 2OT or later. Calculate the number of OT periods and add that to the centre image.
         elif game['period_type'] == 'OT':
-            self.draw['full'].text((1, 8), str(game['period_num'] - 3), font=self.FONTS['med'], fill=self.COLOURS['white'])
-            self.draw['full'].text((8, 8), game['period_type'], font=self.FONTS['med'], fill=self.COLOURS['white'])
+            self.draw['centre'].text((1, 8), str(game['period_num'] - 3), font=self.FONTS['med'], fill=self.COLOURS['white'])
+            self.draw['centre'].text((8, 8), game['period_type'], font=self.FONTS['med'], fill=self.COLOURS['white'])
 
 
     def should_display_time_remaining_in_playing_period(self, game):
