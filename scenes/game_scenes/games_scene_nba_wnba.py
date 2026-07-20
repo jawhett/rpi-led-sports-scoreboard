@@ -4,123 +4,21 @@ import data.nba_wnba_data
 from utils import data_utils, date_utils, image_utils
 from PIL import Image
 
+from utils.font_utils import FONT_3X5, draw_text_3x5, get_text_3x5_width
+from utils.format_utils import parse_odds, compact_down_distance
 from datetime import datetime as dt
 from time import sleep
 import os
 
 
-def compact_down_distance(text):
-    if not text:
-        return ""
-    text = text.upper().replace(" & ", "&")
-    text = text.replace("GOAL", "G")
-    return text
 
 
-def parse_odds(odds_str):
-    if not odds_str:
-        return None
-    try:
-        fav_team, spread_val, ou_val = "", "", ""
-        if ' O/U ' in odds_str:
-            parts = odds_str.split(' O/U ')
-            spread_part = parts[0].strip()
-            ou_val = parts[1].strip()
-        else:
-            spread_part = odds_str.strip()
-            ou_val = ""
-            
-        spread_parts = spread_part.split(' ')
-        if len(spread_parts) >= 2:
-            fav_team = spread_parts[0].strip()
-            spread_val = spread_parts[1].strip()
-        else:
-            for sign in ('-', '+'):
-                if sign in spread_part:
-                    idx = spread_part.find(sign)
-                    fav_team = spread_part[:idx].strip()
-                    spread_val = spread_part[idx:].strip()
-                    break
-            if not fav_team:
-                fav_team = spread_part
-                spread_val = ""
-                
-        return {
-            'fav_team': fav_team,
-            'spread': spread_val,
-            'ou': ou_val
-        }
-    except Exception as e:
-        print(f"Error parsing odds {odds_str}: {e}")
-    return None
 
 
-FONT_3X5 = {
-    '0': (7, 5, 5, 5, 7),
-    '1': (2, 6, 2, 2, 7),
-    '2': (7, 1, 7, 4, 7),
-    '3': (7, 1, 7, 1, 7),
-    '4': (5, 5, 7, 1, 1),
-    '5': (7, 4, 7, 1, 7),
-    '6': (7, 4, 7, 5, 7),
-    '7': (7, 1, 1, 1, 1),
-    '8': (7, 5, 7, 5, 7),
-    '9': (7, 5, 7, 1, 7),
-    ':': (0, 2, 0, 2, 0),
-    ' ': (0, 0, 0, 0, 0),
-    '-': (0, 0, 7, 0, 0),
-    '/': (1, 1, 2, 4, 4),
-    '.': (0, 0, 0, 0, 2),
-    '%': (5, 1, 2, 4, 5),
-    '+': (0, 2, 7, 2, 0),
-    '|': (2, 2, 2, 2, 2),
-    'A': (7, 5, 7, 5, 5),
-    'B': (6, 5, 6, 5, 6),
-    'C': (7, 4, 4, 4, 7),
-    'D': (6, 5, 5, 5, 6),
-    'E': (7, 4, 7, 4, 7),
-    'F': (7, 4, 6, 4, 4),
-    'G': (7, 4, 5, 5, 7),
-    'H': (5, 5, 7, 5, 5),
-    'I': (7, 2, 2, 2, 7),
-    'J': (1, 1, 1, 5, 7),
-    'K': (5, 5, 6, 5, 5),
-    'L': (4, 4, 4, 4, 7),
-    'M': (5, 7, 5, 5, 5),
-    'N': (5, 7, 7, 5, 5),
-    'O': (7, 5, 5, 5, 7),
-    'P': (7, 5, 7, 4, 4),
-    'Q': (7, 5, 5, 7, 3),
-    'R': (7, 5, 6, 5, 5),
-    'S': (7, 4, 7, 1, 7),
-    'T': (7, 2, 2, 2, 2),
-    'U': (5, 5, 5, 5, 7),
-    'V': (5, 5, 5, 5, 2),
-    'W': (5, 5, 5, 7, 5),
-    'X': (5, 5, 2, 5, 5),
-    'Y': (5, 5, 2, 2, 2),
-    'Z': (7, 1, 2, 4, 7),
-    '@': (5, 7, 5, 1, 7),
-}
 
 
-def draw_text_3x5(draw, x, y, text, fill_color):
-    curr_x = x
-    for char in text.upper():
-        if char in FONT_3X5:
-            rows = FONT_3X5[char]
-            for row_idx, row_val in enumerate(rows):
-                for col_idx in range(3):
-                    if (row_val >> (2 - col_idx)) & 1:
-                        draw.point((curr_x + col_idx, y + row_idx), fill=fill_color)
-            curr_x += 4
-        else:
-            curr_x += 4
-    return curr_x
 
 
-def get_text_3x5_width(text):
-    return len(text) * 4 - 1 if text else 0
 
 
 class NBAWNBAGamesScene(GamesScene):
