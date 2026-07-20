@@ -176,7 +176,7 @@ class WorldCupGamesScene(GamesScene):
         from utils import image_utils
         from PIL import Image
         import os
-        from test_layout import get_text_3x5_width, draw_text_3x5
+        from utils.font_utils import get_text_3x5_width, draw_text_3x5
 
         image_utils.clear_image(self.images['full'], self.draw['full'])
 
@@ -239,7 +239,7 @@ class WorldCupGamesScene(GamesScene):
         from PIL import Image
         import os
         from utils.data_utils import TEAM_COLORS
-        from test_layout import get_text_3x5_width, draw_text_3x5
+        from utils.font_utils import get_text_3x5_width, draw_text_3x5
 
         image_utils.clear_image(self.images['full'], self.draw['full'])
 
@@ -338,7 +338,7 @@ class WorldCupGamesScene(GamesScene):
         from PIL import Image
         import os
         from utils.data_utils import TEAM_COLORS
-        from test_layout import get_text_3x5_width, draw_text_3x5
+        from utils.font_utils import get_text_3x5_width, draw_text_3x5
 
         image_utils.clear_image(self.images['full'], self.draw['full'])
 
