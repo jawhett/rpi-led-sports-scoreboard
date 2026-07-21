@@ -276,9 +276,9 @@ class NBAWNBAGamesScene(GamesScene):
             try:
                 away_logo = Image.open(away_logo_path)
                 away_logo = image_utils.crop_image(away_logo)
-                away_logo.thumbnail((12, 9))
+                away_logo.thumbnail((24, 16))
                 x = 1  # Leave 1px padding from the outer edge (where ticks are drawn)
-                y = (10 - away_logo.height) // 2
+                y = 0
                 self.images['full'].paste(away_logo, (x, max(0, y)))
             except Exception as e:
                 print(f"Error loading logo {away_logo_path}: {e}")
@@ -289,9 +289,9 @@ class NBAWNBAGamesScene(GamesScene):
             try:
                 home_logo = Image.open(home_logo_path)
                 home_logo = image_utils.crop_image(home_logo)
-                home_logo.thumbnail((12, 9))
+                home_logo.thumbnail((24, 16))
                 x = 63 - home_logo.width  # Leave 1px padding from outer edge
-                y = (10 - home_logo.height) // 2
+                y = 0
                 self.images['full'].paste(home_logo, (x, max(0, y)))
             except Exception as e:
                 print(f"Error loading logo {home_logo_path}: {e}")
@@ -363,23 +363,23 @@ class NBAWNBAGamesScene(GamesScene):
         # 5. Draw Scores (row 11..30) - using FONTS['giant_bold'] (10x20)
         away_score = game['away_score']
         w = len(str(away_score)) * 8
-        x = 16 - w // 2
+        x = 12 - w // 2
         color_away = self.COLOURS['white']
         if score_fade_color and game.get('scoring_team') in ['away', 'both']:
             color_away = score_fade_color
         elif self.settings['score_alerting']['score_coloured'] and game.get('away_team_scored'):
             color_away = self.COLOURS['red_bright']
-        self.draw['full'].text((x, 10), str(away_score), font=self.FONTS['lrg_bold'], fill=color_away)
+        self.draw['full'].text((x, 16), str(away_score), font=self.FONTS['lrg_bold'], fill=color_away)
 
         home_score = game['home_score']
         w = len(str(home_score)) * 8
-        x = 48 - w // 2
+        x = 52 - w // 2
         color_home = self.COLOURS['white']
         if score_fade_color and game.get('scoring_team') in ['home', 'both']:
             color_home = score_fade_color
         elif self.settings['score_alerting']['score_coloured'] and game.get('home_team_scored'):
             color_home = self.COLOURS['red_bright']
-        self.draw['full'].text((x, 10), str(home_score), font=self.FONTS['lrg_bold'], fill=color_home)
+        self.draw['full'].text((x, 16), str(home_score), font=self.FONTS['lrg_bold'], fill=color_home)
 
         # 6. Padded Bottom Banner (row 27..31) for secondary info
         banner_text = ""

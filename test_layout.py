@@ -1,6 +1,8 @@
 import os
 import math
 from PIL import Image, ImageDraw, ImageFont
+from utils.font_utils import get_text_3x5_width, draw_text_3x5
+from utils.format_utils import compact_down_distance, parse_odds
 from utils.data_utils import TEAM_COLORS
 
 # Define fonts
@@ -67,32 +69,24 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0):
     status_code = game['status_code']
     league = game['league']
 
-    # Keep logos compact in the top corners (size 12x9) for live, but enlarge to 24x16 for scheduled
-    logo_size = (24, 16) if status_code == 1 else (12, 9)
+    # Logos as big as possible: 24x16 for all views
+    logo_size = (24, 16)
 
     if away_logo:
         away_logo.thumbnail(logo_size)
     if home_logo:
         home_logo.thumbnail(logo_size)
 
-    # Draw Away Logo (clean floating in top-left or centered)
+    # Draw Away Logo (clean floating top-left)
     if away_logo:
-        if status_code == 1: # Scheduled: center it in left half, rows 0..17
-            x = (32 - away_logo.width) // 2
-            y = (18 - away_logo.height) // 2
-        else: # Live
-            x = 1
-            y = (10 - away_logo.height) // 2
+        x = 1
+        y = 0
         img.paste(away_logo, (x, max(0, y)))
 
-    # Draw Home Logo (clean floating in top-right or centered)
+    # Draw Home Logo (clean floating top-right)
     if home_logo:
-        if status_code == 1: # Scheduled: center it in right half, rows 0..17
-            x = 32 + (32 - home_logo.width) // 2
-            y = (18 - home_logo.height) // 2
-        else: # Live
-            x = 63 - home_logo.width
-            y = (10 - home_logo.height) // 2
+        x = 63 - home_logo.width
+        y = 0
         img.paste(home_logo, (x, max(0, y)))
 
     # 2. Top Center channel (cols 14..49, y=1..10) for Clock / Period or FINAL
@@ -160,8 +154,8 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0):
             away_color = (away_color[0] // 3, away_color[1] // 3, away_color[2] // 3)
             
         w = len(str(away_score)) * 8
-        x = 16 - w // 2
-        draw.text((x, 12), str(away_score), font=FONTS['lrg_bold'], fill=away_color)
+        x = 12 - w // 2
+        draw.text((x, 16), str(away_score), font=FONTS['lrg_bold'], fill=away_color)
 
         # Draw Home Score
         home_score = game['home_score']
@@ -170,8 +164,8 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0):
             home_color = (home_color[0] // 3, home_color[1] // 3, home_color[2] // 3)
             
         w = len(str(home_score)) * 8
-        x = 48 - w // 2
-        draw.text((x, 12), str(home_score), font=FONTS['lrg_bold'], fill=home_color)
+        x = 52 - w // 2
+        draw.text((x, 16), str(home_score), font=FONTS['lrg_bold'], fill=home_color)
 
     # 5. Horizontal bottom banner (row 27..31) for secondary info (leaves row 26 blank for padding)
     if status_code == 2:  # In Progress
@@ -206,11 +200,11 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0):
         parsed_odds = parse_odds(game.get('odds_str'))
         # Show matchup abbreviations below logos for scheduled (using sm_bold for smaller names, y=18)
         w = len(game['away_abrv']) * 5
-        x = 16 - w // 2
+        x = 12 - w // 2
         draw.text((x, 18), game['away_abrv'], font=FONTS['sm_bold'], fill=COLOURS['white'])
 
         w = len(game['home_abrv']) * 5
-        x = 48 - w // 2
+        x = 52 - w // 2
         draw.text((x, 18), game['home_abrv'], font=FONTS['sm_bold'], fill=COLOURS['white'])
 
         # Banner at the bottom for kickoff / odds (starting at y=27)

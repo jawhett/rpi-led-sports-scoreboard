@@ -124,8 +124,8 @@ class GamesScene(Scene):
                 away_logo = Image.open(away_logo_path)
                 away_logo = image_utils.crop_image(away_logo)
                 away_logo.thumbnail((24, 16))
-                x = (32 - away_logo.width) // 2
-                y = (18 - away_logo.height) // 2
+                x = 1
+                y = 0
                 self.images['full'].paste(away_logo, (x, max(0, y)))
             except Exception:
                 pass
@@ -136,18 +136,18 @@ class GamesScene(Scene):
                 home_logo = Image.open(home_logo_path)
                 home_logo = image_utils.crop_image(home_logo)
                 home_logo.thumbnail((24, 16))
-                x = 32 + (32 - home_logo.width) // 2
-                y = (18 - home_logo.height) // 2
+                x = 63 - home_logo.width
+                y = 0
                 self.images['full'].paste(home_logo, (x, max(0, y)))
             except Exception:
                 pass
 
         w = len(game['away_abrv']) * 5
-        x = 16 - w // 2
+        x = 12 - w // 2
         self.draw['full'].text((x, 18), game['away_abrv'], font=self.FONTS['sm_bold'], fill=self.COLOURS['white'])
 
         w = len(game['home_abrv']) * 5
-        x = 48 - w // 2
+        x = 52 - w // 2
         self.draw['full'].text((x, 18), game['home_abrv'], font=self.FONTS['sm_bold'], fill=self.COLOURS['white'])
 
         if hasattr(self, 'get_not_started_banner_text'):
@@ -219,8 +219,8 @@ class GamesScene(Scene):
                 away_logo = Image.open(away_logo_path)
                 away_logo = image_utils.crop_image(away_logo)
                 away_logo.thumbnail((24, 16))
-                x = (32 - away_logo.width) // 2
-                y = (18 - away_logo.height) // 2
+                x = 1
+                y = 0
                 self.images['full'].paste(away_logo, (x, max(0, y)))
             except Exception:
                 pass
@@ -232,8 +232,8 @@ class GamesScene(Scene):
                 home_logo = Image.open(home_logo_path)
                 home_logo = image_utils.crop_image(home_logo)
                 home_logo.thumbnail((24, 16))
-                x = 32 + (32 - home_logo.width) // 2
-                y = (18 - home_logo.height) // 2
+                x = 63 - home_logo.width
+                y = 0
                 self.images['full'].paste(home_logo, (x, max(0, y)))
             except Exception:
                 pass
@@ -259,13 +259,13 @@ class GamesScene(Scene):
 
         # Draw Away Score directly under logo
         w = len(str(away_score)) * 8
-        x = 16 - w // 2
-        self.draw['full'].text((x, 18), str(away_score), font=self.FONTS['lrg_bold'], fill=color_away)
+        x = 12 - w // 2
+        self.draw['full'].text((x, 16), str(away_score), font=self.FONTS['lrg_bold'], fill=color_away)
 
         # Draw Home Score directly under logo
         w = len(str(home_score)) * 8
-        x = 48 - w // 2
-        self.draw['full'].text((x, 18), str(home_score), font=self.FONTS['lrg_bold'], fill=color_home)
+        x = 52 - w // 2
+        self.draw['full'].text((x, 16), str(home_score), font=self.FONTS['lrg_bold'], fill=color_home)
 
         if hasattr(self, 'draw_complete_extras'):
             self.draw_complete_extras(game, rotation_mode)
@@ -379,7 +379,7 @@ class GamesScene(Scene):
         # Load, crop, and resize the away team logo.
         away_logo = Image.open(away_logo_path)
         away_logo = image_utils.crop_image(away_logo)
-        away_logo.thumbnail((21, self.images['left'].height))
+        away_logo.thumbnail((24, 16))
 
         # Determine placement and add logo to the left image.
         away_placement_in_image = (
@@ -394,7 +394,7 @@ class GamesScene(Scene):
         # Load, crop, and resize the home team logo.
         home_logo = Image.open(home_logo_path)
         home_logo = image_utils.crop_image(home_logo)
-        home_logo.thumbnail((21, self.images['right'].height))
+        home_logo.thumbnail((24, 16))
 
         # Determine placement and add logo to the right image.
         home_placement_in_image = (
