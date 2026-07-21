@@ -244,9 +244,9 @@ class WorldCupGamesScene(GamesScene):
             try:
                 away_logo = Image.open(away_logo_path)
                 away_logo = image_utils.crop_image(away_logo)
-                away_logo.thumbnail((12, 9))
+                away_logo.thumbnail((24, 16))
                 x = 1
-                y = (10 - away_logo.height) // 2
+                y = 0
                 self.images['full'].paste(away_logo, (x, max(0, y)))
             except Exception:
                 pass
@@ -256,9 +256,9 @@ class WorldCupGamesScene(GamesScene):
             try:
                 home_logo = Image.open(home_logo_path)
                 home_logo = image_utils.crop_image(home_logo)
-                home_logo.thumbnail((12, 9))
+                home_logo.thumbnail((24, 16))
                 x = 63 - home_logo.width
-                y = (10 - home_logo.height) // 2
+                y = 0
                 self.images['full'].paste(home_logo, (x, max(0, y)))
             except Exception:
                 pass
@@ -283,23 +283,23 @@ class WorldCupGamesScene(GamesScene):
 
         away_score = game['away_score']
         w = len(str(away_score)) * 8
-        x = 16 - w // 2
+        x = 12 - w // 2
         color_away = TEAM_COLORS.get(game['away_abrv'], self.COLOURS['white'])
         if score_fade_color and game.get('scoring_team') in ['away', 'both']:
             color_away = score_fade_color
         elif self.settings['score_alerting']['score_coloured'] and game.get('away_team_scored'):
             color_away = self.COLOURS['red_bright']
-        self.draw['full'].text((x, 10), str(away_score), font=self.FONTS['lrg_bold'], fill=color_away)
+        self.draw['full'].text((x, 16), str(away_score), font=self.FONTS['lrg_bold'], fill=color_away)
 
         home_score = game['home_score']
         w = len(str(home_score)) * 8
-        x = 48 - w // 2
+        x = 52 - w // 2
         color_home = TEAM_COLORS.get(game['home_abrv'], self.COLOURS['white'])
         if score_fade_color and game.get('scoring_team') in ['home', 'both']:
             color_home = score_fade_color
         elif self.settings['score_alerting']['score_coloured'] and game.get('home_team_scored'):
             color_home = self.COLOURS['red_bright']
-        self.draw['full'].text((x, 10), str(home_score), font=self.FONTS['lrg_bold'], fill=color_home)
+        self.draw['full'].text((x, 16), str(home_score), font=self.FONTS['lrg_bold'], fill=color_home)
 
         # Cycle events (goals/red cards) at the bottom
         match_events = game.get('events', [])

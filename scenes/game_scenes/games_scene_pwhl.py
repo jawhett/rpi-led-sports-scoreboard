@@ -239,8 +239,8 @@ class PWHLGamesScene(GamesScene):
                 away_logo = Image.open(away_logo_path)
                 away_logo = image_utils.crop_image(away_logo)
                 away_logo.thumbnail((24, 16))
-                x = (32 - away_logo.width) // 2
-                y = (15 - away_logo.height) // 2
+                x = 1
+                y = 0
                 self.images['full'].paste(away_logo, (x, y))
             except Exception as e:
                 pass
@@ -252,8 +252,8 @@ class PWHLGamesScene(GamesScene):
                 home_logo = Image.open(home_logo_path)
                 home_logo = image_utils.crop_image(home_logo)
                 home_logo.thumbnail((24, 16))
-                x = 32 + (32 - home_logo.width) // 2
-                y = (15 - home_logo.height) // 2
+                x = 63 - home_logo.width
+                y = 0
                 self.images['full'].paste(home_logo, (x, y))
             except Exception as e:
                 pass
@@ -297,15 +297,15 @@ class PWHLGamesScene(GamesScene):
             color_home = self.COLOURS['red_bright']
 
         # Determine if we should offset scores down (same as NHL logic)
-        y_offset = 20 if len(str(away_score)) <= 1 and len(str(home_score)) <= 1 else 18
-        away_font = self.FONTS['giant_bold'] if len(str(away_score)) <= 1 else self.FONTS['lrg_bold']
-        home_font = self.FONTS['giant_bold'] if len(str(home_score)) <= 1 else self.FONTS['lrg_bold']
+        y_offset = 16
+        away_font = self.FONTS['lrg_bold']
+        home_font = self.FONTS['lrg_bold']
 
-        w = len(str(away_score)) * (10 if len(str(away_score)) <= 1 else 8)
-        x = 16 - w // 2
+        w = len(str(away_score)) * 8
+        x = 12 - w // 2
         self.draw['full'].text((x, y_offset), str(away_score), font=away_font, fill=color_away)
 
-        w = len(str(home_score)) * (10 if len(str(home_score)) <= 1 else 8)
-        x = 48 - w // 2
+        w = len(str(home_score)) * 8
+        x = 52 - w // 2
         self.draw['full'].text((x, y_offset), str(home_score), font=home_font, fill=color_home)
 

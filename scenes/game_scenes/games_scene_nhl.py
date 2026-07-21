@@ -214,9 +214,9 @@ class NHLGamesScene(GamesScene):
             try:
                 away_logo = Image.open(away_logo_path)
                 away_logo = image_utils.crop_image(away_logo)
-                away_logo.thumbnail((22, 16))
-                x = (24 - away_logo.width) // 2
-                y = (15 - away_logo.height) // 2
+                away_logo.thumbnail((24, 16))
+                x = 1
+                y = 0
                 self.images['full'].paste(away_logo, (x, y))
             except Exception as e:
                 print(f"Error loading logo {away_logo_path}: {e}")
@@ -227,9 +227,9 @@ class NHLGamesScene(GamesScene):
             try:
                 home_logo = Image.open(home_logo_path)
                 home_logo = image_utils.crop_image(home_logo)
-                home_logo.thumbnail((22, 16))
-                x = 40 + (24 - home_logo.width) // 2
-                y = (15 - home_logo.height) // 2
+                home_logo.thumbnail((24, 16))
+                x = 63 - home_logo.width
+                y = 0
                 self.images['full'].paste(home_logo, (x, y))
             except Exception as e:
                 print(f"Error loading logo {home_logo_path}: {e}")
@@ -276,7 +276,7 @@ class NHLGamesScene(GamesScene):
         from PIL import ImageFont
         if away_score >= 100:
             away_font = ImageFont.load('assets/fonts/Tamzen7x14b.pil')
-            y_offset = 18
+            y_offset = 16
             w = len(str(away_score)) * 7
         else:
             away_font = self.FONTS['lrg_bold']
@@ -296,13 +296,13 @@ class NHLGamesScene(GamesScene):
         home_score = game['home_score'] if game['home_score'] is not None else 0
         if home_score >= 100:
             home_font = ImageFont.load('assets/fonts/Tamzen7x14b.pil')
-            y_offset = 18
+            y_offset = 16
             w = len(str(home_score)) * 7
         else:
             home_font = self.FONTS['lrg_bold']
             y_offset = 16
             w = len(str(home_score)) * 8
-        x = 51 - w // 2
+        x = 52 - w // 2
         
         color_home = self.COLOURS['white']
         if score_fade_color and game.get('scoring_team') in ['home', 'both']:

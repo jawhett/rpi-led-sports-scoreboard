@@ -202,9 +202,9 @@ class MLBGamesScene(GamesScene):
             try:
                 away_logo = Image.open(away_logo_path)
                 away_logo = image_utils.crop_image(away_logo)
-                away_logo.thumbnail((12, 9))
+                away_logo.thumbnail((24, 16))
                 x = 1
-                y = (10 - away_logo.height) // 2
+                y = 0
                 self.images['full'].paste(away_logo, (x, max(0, y)))
             except Exception as e:
                 pass
@@ -215,9 +215,9 @@ class MLBGamesScene(GamesScene):
             try:
                 home_logo = Image.open(home_logo_path)
                 home_logo = image_utils.crop_image(home_logo)
-                home_logo.thumbnail((12, 9))
+                home_logo.thumbnail((24, 16))
                 x = 63 - home_logo.width
-                y = (10 - home_logo.height) // 2
+                y = 0
                 self.images['full'].paste(home_logo, (x, max(0, y)))
             except Exception as e:
                 pass
@@ -237,16 +237,16 @@ class MLBGamesScene(GamesScene):
             color_home = self.COLOURS['red_bright']
 
         # Determine if we should offset scores down
-        y_offset = 12
+        y_offset = 16
         away_font = self.FONTS['lrg_bold']
         home_font = self.FONTS['lrg_bold']
 
         w = len(str(away_score)) * 8
-        x = 16 - w // 2
+        x = 12 - w // 2
         self.draw['full'].text((x, y_offset), str(away_score), font=away_font, fill=color_away)
 
         w = len(str(home_score)) * 8
-        x = 48 - w // 2
+        x = 52 - w // 2
         self.draw['full'].text((x, y_offset), str(home_score), font=home_font, fill=color_home)
 
         # 5. Draw Outs and Runners
