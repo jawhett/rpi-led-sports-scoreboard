@@ -194,6 +194,15 @@ class NHLGamesScene(GamesScene):
             sleep(self.settings['game_display_duration'])
             self.transition_image(direction='out', image_already_combined=True)
 
+    def get_final_period_str(self, game):
+        if game.get('period_type') == 'SO':
+            return "SO"
+        elif game.get('period_type') == 'OT' and game.get('period_num', 4) == 4:
+            return "OT"
+        elif game.get('period_type') == 'OT' and game.get('period_num', 4) > 4:
+            return f"{game['period_num'] - 3}OT"
+        return ""
+
     def build_game_in_progress_image(self, game, score_fade_color=None, clock_seconds_override=None, blink_colon=False):
         """ Builds a stadium-style scoreboard image for games in progress.
         """
@@ -303,151 +312,7 @@ class NHLGamesScene(GamesScene):
 
         self.draw['full'].text((x, y_offset), str(home_score), font=home_font, fill=color_home)
 
-    def build_game_not_started_image(self, game):
-        """ Builds a stadium-style scoreboard image for scheduled games.
-        """
-        image_utils.clear_image(self.images['full'], self.draw['full'])
-        
-        # 1. Draw Away Team Logo
-        away_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["away_abrv"]}.png' if game["away_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["away_abrv"]}_{self.alt_logos[game["away_abrv"]]}.png'
-        if os.path.exists(away_logo_path):
-            try:
-                away_logo = Image.open(away_logo_path)
-                away_logo = image_utils.crop_image(away_logo)
-                away_logo.thumbnail((22, 16))
-                x = (24 - away_logo.width) // 2
-                y = (15 - away_logo.height) // 2
-                self.images['full'].paste(away_logo, (x, y))
-            except Exception as e:
-                print(f"Error loading logo {away_logo_path}: {e}")
 
-        # 2. Draw Home Team Logo
-        home_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["home_abrv"]}.png' if game["home_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["home_abrv"]}_{self.alt_logos[game["home_abrv"]]}.png'
-        if os.path.exists(home_logo_path):
-            try:
-                home_logo = Image.open(home_logo_path)
-                home_logo = image_utils.crop_image(home_logo)
-                home_logo.thumbnail((22, 16))
-                x = 40 + (24 - home_logo.width) // 2
-                y = (15 - home_logo.height) // 2
-                self.images['full'].paste(home_logo, (x, y))
-            except Exception as e:
-                print(f"Error loading logo {home_logo_path}: {e}")
-
-        # Always show team abbreviations at the bottom (Away=10, Home=53, shifted to y=20)
-        w = len(game['away_abrv']) * 6
-        x = 12 - w // 2
-        self.draw['full'].text((x, 20), game['away_abrv'], font=self.FONTS['med_bold'], fill=self.COLOURS['white'])
-
-        w = len(game['home_abrv']) * 6
-        x = 51 - w // 2
-        self.draw['full'].text((x, 20), game['home_abrv'], font=self.FONTS['med_bold'], fill=self.COLOURS['white'])
-
-        # Scheduled display details (date/time)
-        game_date = game['start_datetime_local'].date()
-        today = dt.now().astimezone().date()
-        if game_date == today:
-            date_str = "TODAY"
-        elif (game_date - today).days == 1:
-            date_str = "TOMORROW"
-        else:
-            date_str = game['start_datetime_local'].strftime('%b %d').upper()
-            if " 0" in date_str:
-                date_str = date_str.replace(" 0", " ")
-                
-        w = len(date_str) * 5
-        x = 32 - w // 2
-        self.draw['full'].text((x, 4), date_str, font=self.FONTS['sm_bold'], fill=self.COLOURS['grey_light'])
-
-        time_str = game['start_datetime_local'].time().strftime('%I:%M')
-        if time_str.startswith('0'):
-            time_str = time_str[1:]
-        w = len(time_str) * 5
-        x = 32 - w // 2
-        self.draw['full'].text((x, 21), time_str, font=self.FONTS['sm_bold'], fill=self.COLOURS['white'])
-
-    def build_game_complete_image(self, game):
-        """ Builds a stadium-style scoreboard image for completed games.
-        """
-        image_utils.clear_image(self.images['full'], self.draw['full'])
-        
-        # 1. Draw Away Team Logo
-        away_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["away_abrv"]}.png' if game["away_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["away_abrv"]}_{self.alt_logos[game["away_abrv"]]}.png'
-        if os.path.exists(away_logo_path):
-            try:
-                away_logo = Image.open(away_logo_path)
-                away_logo = image_utils.crop_image(away_logo)
-                away_logo.thumbnail((22, 16))
-                x = (24 - away_logo.width) // 2
-                y = (15 - away_logo.height) // 2
-                self.images['full'].paste(away_logo, (x, y))
-            except Exception as e:
-                print(f"Error loading logo {away_logo_path}: {e}")
-
-        # 2. Draw Home Team Logo
-        home_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["home_abrv"]}.png' if game["home_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["home_abrv"]}_{self.alt_logos[game["home_abrv"]]}.png'
-        if os.path.exists(home_logo_path):
-            try:
-                home_logo = Image.open(home_logo_path)
-                home_logo = image_utils.crop_image(home_logo)
-                home_logo.thumbnail((22, 16))
-                x = 40 + (24 - home_logo.width) // 2
-                y = (15 - home_logo.height) // 2
-                self.images['full'].paste(home_logo, (x, y))
-            except Exception as e:
-                print(f"Error loading logo {home_logo_path}: {e}")
-
-        # 3. Center top shows FINAL (y=0)
-        final_str = "FINAL"
-        w = len(final_str) * 6
-        x = 32 - w // 2
-        self.draw['full'].text((x, 0), final_str, font=self.FONTS['med_bold'], fill=self.COLOURS['red_bright'])
-
-        # 4. Center bottom shows OT/SO details if applicable (y=20, using med_bold)
-        ot_str = ""
-        if game['period_type'] == 'SO':
-            ot_str = "SO"
-        elif game['period_type'] == 'OT' and game['period_num'] == 4:
-            ot_str = "OT"
-        elif game['period_type'] == 'OT' and game['period_num'] > 4:
-            ot_str = f"{game['period_num'] - 3}OT"
-            
-        if ot_str:
-            w = len(ot_str) * 6
-            x = 32 - w // 2
-            self.draw['full'].text((x, 20), ot_str, font=self.FONTS['med_bold'], fill=self.COLOURS['grey_light'])
-
-        # Highlight winner and dim loser scores (shifted centers: Away=10, Home=53)
-        away_score = game['away_score'] if game['away_score'] is not None else 0
-        home_score = game['home_score'] if game['home_score'] is not None else 0
-        
-        color_away = self.COLOURS['white'] if away_score >= home_score else self.COLOURS['grey_dark']
-        color_home = self.COLOURS['white'] if home_score >= away_score else self.COLOURS['grey_dark']
-
-        # 5. Draw Away Score
-        from PIL import ImageFont
-        if away_score >= 100:
-            away_font = ImageFont.load('assets/fonts/Tamzen7x14b.pil')
-            y_offset = 18
-            w = len(str(away_score)) * 7
-        else:
-            away_font = self.FONTS['lrg_bold']
-            y_offset = 16
-            w = len(str(away_score)) * 8
-        x = 12 - w // 2
-        self.draw['full'].text((x, y_offset), str(away_score), font=away_font, fill=color_away)
-
-        # 6. Draw Home Score
-        if home_score >= 100:
-            home_font = ImageFont.load('assets/fonts/Tamzen7x14b.pil')
-            y_offset = 18
-            w = len(str(home_score)) * 7
-        else:
-            home_font = self.FONTS['lrg_bold']
-            y_offset = 16
-            w = len(str(home_score)) * 8
-        x = 51 - w // 2
-        self.draw['full'].text((x, y_offset), str(home_score), font=home_font, fill=color_home)
 
     def fade_score_change(self, game, clock_seconds=None):
         """ Fades score from red to white after a score change.

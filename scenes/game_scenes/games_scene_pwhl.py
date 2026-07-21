@@ -217,66 +217,15 @@ class PWHLGamesScene(GamesScene):
         else:
             return False
 
-    def build_game_not_started_image(self, game):
-        """ Builds a stadium-style scoreboard image for scheduled games.
-        """
-        image_utils.clear_image(self.images['full'], self.draw['full'])
 
-        # 1. Draw Away Team Logo
-        away_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["away_abrv"]}.png' if game["away_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["away_abrv"]}_{self.alt_logos[game["away_abrv"]]}.png'
-        if os.path.exists(away_logo_path):
-            try:
-                away_logo = Image.open(away_logo_path)
-                away_logo = image_utils.crop_image(away_logo)
-                away_logo.thumbnail((24, 16))
-                x = (32 - away_logo.width) // 2
-                y = (18 - away_logo.height) // 2
-                self.images['full'].paste(away_logo, (x, y))
-            except Exception as e:
-                pass
-
-        # 2. Draw Home Team Logo
-        home_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["home_abrv"]}.png' if game["home_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["home_abrv"]}_{self.alt_logos[game["home_abrv"]]}.png'
-        if os.path.exists(home_logo_path):
-            try:
-                home_logo = Image.open(home_logo_path)
-                home_logo = image_utils.crop_image(home_logo)
-                home_logo.thumbnail((24, 16))
-                x = 32 + (32 - home_logo.width) // 2
-                y = (18 - home_logo.height) // 2
-                self.images['full'].paste(home_logo, (x, y))
-            except Exception as e:
-                pass
-
-        # Always show team abbreviations at the bottom (y=20)
-        w = len(game['away_abrv']) * 6
-        x = 16 - w // 2
-        self.draw['full'].text((x, 20), game['away_abrv'], font=self.FONTS['med_bold'], fill=self.COLOURS['white'])
-
-        w = len(game['home_abrv']) * 6
-        x = 48 - w // 2
-        self.draw['full'].text((x, 20), game['home_abrv'], font=self.FONTS['med_bold'], fill=self.COLOURS['white'])
-
-        # Scheduled display details (date/time)
-        game_date = game['start_datetime_local'].date()
-        today = dt.now().astimezone().date()
-        if game_date == today:
-            date_str = "TODAY"
-        elif (game_date - today).days == 1:
-            date_str = "TOMORROW"
-        else:
-            date_str = game['start_datetime_local'].strftime('%b %d').upper()
-            if " 0" in date_str:
-                date_str = date_str.replace(" 0", " ")
-
-        time_str = game['start_datetime_local'].time().strftime('%I:%M %p')
-        if time_str.startswith('0'):
-            time_str = time_str[1:]
-
-        banner_text = f"{date_str} {time_str}"
-        w = get_text_3x5_width(banner_text)
-        x = 32 - w // 2
-        draw_text_3x5(self.draw['full'], x, 27, banner_text, self.COLOURS['white'])
+    def get_final_period_str(self, game):
+        if game.get('period_type') == 'SO':
+            return "SO"
+        elif game.get('period_type') == 'OT1':
+            return "OT"
+        elif 'OT' in game.get('period_type', ''):
+            return f"{game.get('period_num', 4) - 3}OT"
+        return ""
 
     def build_game_in_progress_image(self, game):
         """ Builds a stadium-style scoreboard image for games in progress.
@@ -360,72 +309,3 @@ class PWHLGamesScene(GamesScene):
         x = 48 - w // 2
         self.draw['full'].text((x, y_offset), str(home_score), font=home_font, fill=color_home)
 
-    def build_game_complete_image(self, game):
-        """ Builds a stadium-style scoreboard image for completed games.
-        """
-        image_utils.clear_image(self.images['full'], self.draw['full'])
-
-        # 1. Draw Away Team Logo
-        away_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["away_abrv"]}.png' if game["away_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["away_abrv"]}_{self.alt_logos[game["away_abrv"]]}.png'
-        if os.path.exists(away_logo_path):
-            try:
-                away_logo = Image.open(away_logo_path)
-                away_logo = image_utils.crop_image(away_logo)
-                away_logo.thumbnail((24, 16))
-                x = (32 - away_logo.width) // 2
-                y = (15 - away_logo.height) // 2
-                self.images['full'].paste(away_logo, (x, y))
-            except Exception as e:
-                pass
-
-        # 2. Draw Home Team Logo
-        home_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["home_abrv"]}.png' if game["home_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["home_abrv"]}_{self.alt_logos[game["home_abrv"]]}.png'
-        if os.path.exists(home_logo_path):
-            try:
-                home_logo = Image.open(home_logo_path)
-                home_logo = image_utils.crop_image(home_logo)
-                home_logo.thumbnail((24, 16))
-                x = 32 + (32 - home_logo.width) // 2
-                y = (15 - home_logo.height) // 2
-                self.images['full'].paste(home_logo, (x, y))
-            except Exception as e:
-                pass
-
-        # 3. Center top shows FINAL (y=0)
-        final_str = "FINAL"
-        w = len(final_str) * 6
-        x = 32 - w // 2
-        self.draw['full'].text((x, 0), final_str, font=self.FONTS['med_bold'], fill=self.COLOURS['red_bright'])
-
-        # 4. Center bottom shows OT/SO details if applicable (y=20, using med_bold)
-        ot_str = ""
-        if game.get('period_type') == 'SO':
-            ot_str = "SO"
-        elif game.get('period_type') == 'OT1':
-            ot_str = "OT"
-        elif 'OT' in game.get('period_type', ''):
-            ot_str = f"{game.get('period_num', 4) - 3}OT"
-
-        if ot_str:
-            w = len(ot_str) * 6
-            x = 32 - w // 2
-            self.draw['full'].text((x, 20), ot_str, font=self.FONTS['med_bold'], fill=self.COLOURS['white'])
-
-        # Highlight winner and dim loser scores
-        away_score = game['away_score']
-        home_score = game['home_score']
-        color_away = self.COLOURS['white'] if away_score >= home_score else self.COLOURS['grey_dark']
-        color_home = self.COLOURS['white'] if home_score >= away_score else self.COLOURS['grey_dark']
-
-        # Determine if we should offset scores down (same as NHL logic)
-        y_offset = 20 if len(str(away_score)) <= 1 and len(str(home_score)) <= 1 else 18
-        away_font = self.FONTS['giant_bold'] if len(str(away_score)) <= 1 else self.FONTS['lrg_bold']
-        home_font = self.FONTS['giant_bold'] if len(str(home_score)) <= 1 else self.FONTS['lrg_bold']
-
-        w = len(str(away_score)) * (10 if len(str(away_score)) <= 1 else 8)
-        x = 16 - w // 2
-        self.draw['full'].text((x, y_offset), str(away_score), font=away_font, fill=color_away)
-
-        w = len(str(home_score)) * (10 if len(str(home_score)) <= 1 else 8)
-        x = 48 - w // 2
-        self.draw['full'].text((x, y_offset), str(home_score), font=home_font, fill=color_home)
