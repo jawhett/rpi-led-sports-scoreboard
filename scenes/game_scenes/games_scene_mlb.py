@@ -155,53 +155,18 @@ class MLBGamesScene(GamesScene):
 
 
 
-    def build_game_not_started_image(self, game):
-        """ Builds a stadium-style scoreboard image for scheduled games.
-        """
-        image_utils.clear_image(self.images['full'], self.draw['full'])
 
-        away_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["away_abrv"]}.png' if game["away_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["away_abrv"]}_{self.alt_logos[game["away_abrv"]]}.png'
-        if os.path.exists(away_logo_path):
-            try:
-                away_logo = Image.open(away_logo_path)
-                away_logo = image_utils.crop_image(away_logo)
-                away_logo.thumbnail((24, 16))
-                x = (32 - away_logo.width) // 2
-                y = (18 - away_logo.height) // 2
-                self.images['full'].paste(away_logo, (x, max(0, y)))
-            except Exception as e:
-                pass
 
-        home_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["home_abrv"]}.png' if game["home_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["home_abrv"]}_{self.alt_logos[game["home_abrv"]]}.png'
-        if os.path.exists(home_logo_path):
-            try:
-                home_logo = Image.open(home_logo_path)
-                home_logo = image_utils.crop_image(home_logo)
-                home_logo.thumbnail((24, 16))
-                x = 32 + (32 - home_logo.width) // 2
-                y = (18 - home_logo.height) // 2
-                self.images['full'].paste(home_logo, (x, max(0, y)))
-            except Exception as e:
-                pass
+    def get_not_started_banner_text(self, game, rotation_mode):
+        from utils.format_utils import parse_odds
+        from datetime import datetime as dt
 
-        # Show abbreviations below logos
-        w = len(game['away_abrv']) * 5
-        x = 16 - w // 2
-        self.draw['full'].text((x, 18), game['away_abrv'], font=self.FONTS['sm_bold'], fill=self.COLOURS['white'])
-
-        w = len(game['home_abrv']) * 5
-        x = 48 - w // 2
-        self.draw['full'].text((x, 18), game['home_abrv'], font=self.FONTS['sm_bold'], fill=self.COLOURS['white'])
-
-        # Bottom banner for odds or start time
         parsed_odds = parse_odds(game.get('odds_str'))
         if parsed_odds:
             odds_str = f"{parsed_odds['fav_team']} {parsed_odds['spread']}"
             if parsed_odds['ou']:
                 odds_str = f"{odds_str} U{parsed_odds['ou']}"
-            w = get_text_3x5_width(odds_str)
-            x = 32 - w // 2
-            draw_text_3x5(self.draw['full'], x, 27, odds_str, self.COLOURS['yellow_bright'])
+            return odds_str, self.COLOURS['yellow_bright']
         else:
             game_date = game['start_datetime_local'].date()
             today = dt.now().astimezone().date()
@@ -219,10 +184,12 @@ class MLBGamesScene(GamesScene):
                 time_str = time_str[1:]
 
             banner_text = f"{date_str} {time_str}"
-            w = get_text_3x5_width(banner_text)
-            x = 32 - w // 2
-            draw_text_3x5(self.draw['full'], x, 27, banner_text, self.COLOURS['white'])
+            return banner_text, self.COLOURS['white']
 
+    def get_final_period_str(self, game):
+        if game.get('inning_num', 9) > 9:
+            return str(game['inning_num'])
+        return ""
 
     def build_game_in_progress_image(self, game):
         """ Builds a stadium-style scoreboard image for games in progress.
@@ -288,67 +255,6 @@ class MLBGamesScene(GamesScene):
             self.add_runners_on_base_to_image(game)
 
 
-    def build_game_complete_image(self, game):
-        """ Builds a stadium-style scoreboard image for completed games.
-        """
-        image_utils.clear_image(self.images['full'], self.draw['full'])
-
-        # 1. Draw Away Team Logo
-        away_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["away_abrv"]}.png' if game["away_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["away_abrv"]}_{self.alt_logos[game["away_abrv"]]}.png'
-        if os.path.exists(away_logo_path):
-            try:
-                away_logo = Image.open(away_logo_path)
-                away_logo = image_utils.crop_image(away_logo)
-                away_logo.thumbnail((12, 9))
-                x = 1
-                y = (10 - away_logo.height) // 2
-                self.images['full'].paste(away_logo, (x, max(0, y)))
-            except Exception as e:
-                pass
-
-        # 2. Draw Home Team Logo
-        home_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["home_abrv"]}.png' if game["home_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["home_abrv"]}_{self.alt_logos[game["home_abrv"]]}.png'
-        if os.path.exists(home_logo_path):
-            try:
-                home_logo = Image.open(home_logo_path)
-                home_logo = image_utils.crop_image(home_logo)
-                home_logo.thumbnail((12, 9))
-                x = 63 - home_logo.width
-                y = (10 - home_logo.height) // 2
-                self.images['full'].paste(home_logo, (x, max(0, y)))
-            except Exception as e:
-                pass
-
-        # 3. Center top shows FINAL
-        final_str = "FINAL"
-        w = get_text_3x5_width(final_str)
-        x = 32 - w // 2
-        draw_text_3x5(self.draw['full'], x, 1, final_str, self.COLOURS['red_bright'])
-
-        # Bottom banner for OT
-        if game['inning_num'] > 9:
-            ot_str = f"FINAL / {game['inning_num']}"
-            w = get_text_3x5_width(ot_str)
-            x = 32 - w // 2
-            draw_text_3x5(self.draw['full'], x, 27, ot_str, self.COLOURS['red_bright'])
-
-        # Highlight winner and dim loser scores
-        away_score = game['away_score']
-        home_score = game['home_score']
-        color_away = self.COLOURS['white'] if away_score >= home_score else self.COLOURS['grey_dark']
-        color_home = self.COLOURS['white'] if home_score >= away_score else self.COLOURS['grey_dark']
-
-        y_offset = 12
-        away_font = self.FONTS['lrg_bold']
-        home_font = self.FONTS['lrg_bold']
-
-        w = len(str(away_score)) * 8
-        x = 16 - w // 2
-        self.draw['full'].text((x, y_offset), str(away_score), font=away_font, fill=color_away)
-
-        w = len(str(home_score)) * 8
-        x = 48 - w // 2
-        self.draw['full'].text((x, y_offset), str(home_score), font=home_font, fill=color_home)
 
 
     def add_playing_period_to_image(self, game):

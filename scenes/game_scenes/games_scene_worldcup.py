@@ -172,47 +172,8 @@ class WorldCupGamesScene(GamesScene):
             sleep(self.settings['game_display_duration'])
             self.transition_image(direction='out', image_already_combined=True)
 
-    def build_game_not_started_image(self, game, rotation_mode=0):
-        from utils import image_utils
-        from PIL import Image
-        import os
-        from utils.font_utils import get_text_3x5_width, draw_text_3x5
 
-        image_utils.clear_image(self.images['full'], self.draw['full'])
-
-        away_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["away_abrv"]}.png' if game["away_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["away_abrv"]}_{self.alt_logos[game["away_abrv"]]}.png'
-        if os.path.exists(away_logo_path):
-            try:
-                away_logo = Image.open(away_logo_path)
-                away_logo = image_utils.crop_image(away_logo)
-                away_logo.thumbnail((24, 16))
-                x = (32 - away_logo.width) // 2
-                y = (18 - away_logo.height) // 2
-                self.images['full'].paste(away_logo, (x, max(0, y)))
-            except Exception:
-                pass
-
-        home_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["home_abrv"]}.png' if game["home_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["home_abrv"]}_{self.alt_logos[game["home_abrv"]]}.png'
-        if os.path.exists(home_logo_path):
-            try:
-                home_logo = Image.open(home_logo_path)
-                home_logo = image_utils.crop_image(home_logo)
-                home_logo.thumbnail((24, 16))
-                x = 32 + (32 - home_logo.width) // 2
-                y = (18 - home_logo.height) // 2
-                self.images['full'].paste(home_logo, (x, max(0, y)))
-            except Exception:
-                pass
-
-        w = len(game['away_abrv']) * 5
-        x = 16 - w // 2
-        self.draw['full'].text((x, 18), game['away_abrv'], font=self.FONTS['sm_bold'], fill=self.COLOURS['white'])
-
-        w = len(game['home_abrv']) * 5
-        x = 48 - w // 2
-        self.draw['full'].text((x, 18), game['home_abrv'], font=self.FONTS['sm_bold'], fill=self.COLOURS['white'])
-
-        # Cycle Date/Time, Round Stage, and Location
+    def get_not_started_banner_text(self, game, rotation_mode):
         modes = []
         time_str = game['start_datetime_local'].strftime('%-I:%M%p').replace('AM', 'A').replace('PM', 'P')
         date_str = game['start_datetime_local'].strftime('%-m/%-d')
@@ -223,16 +184,51 @@ class WorldCupGamesScene(GamesScene):
             
         loc = game.get('venue_name') or game.get('venue_city')
         if loc:
-            # Clean up and crop if too long
             loc_str = loc.upper()
             if len(loc_str) > 16:
                 loc_str = loc_str[:15] + "."
             modes.append(loc_str)
 
         display_str = modes[rotation_mode % len(modes)]
-        w = get_text_3x5_width(display_str)
-        x = 32 - w // 2
-        draw_text_3x5(self.draw['full'], max(0, x), 27, display_str, self.COLOURS['white'])
+        return display_str, self.COLOURS['white']
+
+    def get_final_status_text(self, game, rotation_mode):
+        if rotation_mode % 2 == 1 and game.get('stage'):
+            return f"STAGE {game['stage']}"
+        else:
+            status_text = game.get('status', 'FINAL')
+            if game.get('away_shootout') is not None and game.get('home_shootout') is not None:
+                status_text = f"PEN {game['away_shootout']}-{game['home_shootout']}"
+            return status_text
+
+    def draw_complete_extras(self, game, rotation_mode):
+        from utils.font_utils import get_text_3x5_width, draw_text_3x5
+
+        match_events = game.get('events', [])
+        if match_events:
+            idx = rotation_mode % len(match_events)
+            ev = match_events[idx]
+            team_abrv = game['away_abrv'] if ev['team'] == 'away' else game['home_abrv']
+            
+            if ev['type'] == 'goal':
+                event_text = f"{team_abrv}: {ev['name']} {ev['clock']}"
+                color = self.COLOURS['white']
+            else:
+                event_text = f"RC-{team_abrv}: {ev['name']} {ev['clock']}"
+                color = self.COLOURS['red_bright']
+                
+            w = get_text_3x5_width(event_text)
+            x = 32 - w // 2
+            draw_text_3x5(self.draw['full'], max(0, x), 27, event_text, color)
+        else:
+            loc = game.get('venue_name') or game.get('venue_city')
+            if loc:
+                loc_str = loc.upper()
+                if len(loc_str) > 16:
+                    loc_str = loc_str[:15] + "."
+                w = get_text_3x5_width(loc_str)
+                x = 32 - w // 2
+                draw_text_3x5(self.draw['full'], max(0, x), 27, loc_str, self.COLOURS['grey_light'])
 
     def build_game_in_progress_image(self, game, score_fade_color=None, clock_seconds_override=None, rotation_mode=0, blink_colon=False, alert_text_override=None):
         from utils import image_utils
@@ -303,95 +299,6 @@ class WorldCupGamesScene(GamesScene):
             color_home = score_fade_color
         elif self.settings['score_alerting']['score_coloured'] and game.get('home_team_scored'):
             color_home = self.COLOURS['red_bright']
-        self.draw['full'].text((x, 10), str(home_score), font=self.FONTS['lrg_bold'], fill=color_home)
-
-        # Cycle events (goals/red cards) at the bottom
-        match_events = game.get('events', [])
-        if match_events:
-            idx = rotation_mode % len(match_events)
-            ev = match_events[idx]
-            team_abrv = game['away_abrv'] if ev['team'] == 'away' else game['home_abrv']
-            
-            if ev['type'] == 'goal':
-                event_text = f"{team_abrv}: {ev['name']} {ev['clock']}"
-                color = self.COLOURS['white']
-            else:
-                event_text = f"RC-{team_abrv}: {ev['name']} {ev['clock']}"
-                color = self.COLOURS['red_bright']
-                
-            w = get_text_3x5_width(event_text)
-            x = 32 - w // 2
-            draw_text_3x5(self.draw['full'], max(0, x), 27, event_text, color)
-        else:
-            # Fallback: display the stadium location if no events yet
-            loc = game.get('venue_name') or game.get('venue_city')
-            if loc:
-                loc_str = loc.upper()
-                if len(loc_str) > 16:
-                    loc_str = loc_str[:15] + "."
-                w = get_text_3x5_width(loc_str)
-                x = 32 - w // 2
-                draw_text_3x5(self.draw['full'], max(0, x), 27, loc_str, self.COLOURS['grey_light'])
-
-    def build_game_complete_image(self, game, rotation_mode=0):
-        from utils import image_utils
-        from PIL import Image
-        import os
-        from utils.data_utils import TEAM_COLORS
-        from utils.font_utils import get_text_3x5_width, draw_text_3x5
-
-        image_utils.clear_image(self.images['full'], self.draw['full'])
-
-        away_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["away_abrv"]}.png' if game["away_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["away_abrv"]}_{self.alt_logos[game["away_abrv"]]}.png'
-        if os.path.exists(away_logo_path):
-            try:
-                away_logo = Image.open(away_logo_path)
-                away_logo = image_utils.crop_image(away_logo)
-                away_logo.thumbnail((12, 9))
-                x = 1
-                y = (10 - away_logo.height) // 2
-                self.images['full'].paste(away_logo, (x, max(0, y)))
-            except Exception:
-                pass
-
-        home_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["home_abrv"]}.png' if game["home_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["home_abrv"]}_{self.alt_logos[game["home_abrv"]]}.png'
-        if os.path.exists(home_logo_path):
-            try:
-                home_logo = Image.open(home_logo_path)
-                home_logo = image_utils.crop_image(home_logo)
-                home_logo.thumbnail((12, 9))
-                x = 63 - home_logo.width
-                y = (10 - home_logo.height) // 2
-                self.images['full'].paste(home_logo, (x, max(0, y)))
-            except Exception:
-                pass
-
-        # Alternate the top display to avoid crowding
-        if rotation_mode % 2 == 1 and game.get('stage'):
-            status_text = f"STAGE {game['stage']}"
-        else:
-            status_text = game.get('status', 'FINAL')
-            if game.get('away_shootout') is not None and game.get('home_shootout') is not None:
-                status_text = f"PEN {game['away_shootout']}-{game['home_shootout']}"
-            
-        w = get_text_3x5_width(status_text)
-        x = 32 - w // 2
-        draw_text_3x5(self.draw['full'], x, 1, status_text, self.COLOURS['red_bright'])
-
-        away_score = game['away_score']
-        w = len(str(away_score)) * 8
-        x = 16 - w // 2
-        color_away = TEAM_COLORS.get(game['away_abrv'], self.COLOURS['white'])
-        if game['away_score'] < game['home_score']:
-            color_away = (color_away[0] // 3, color_away[1] // 3, color_away[2] // 3)
-        self.draw['full'].text((x, 10), str(away_score), font=self.FONTS['lrg_bold'], fill=color_away)
-
-        home_score = game['home_score']
-        w = len(str(home_score)) * 8
-        x = 48 - w // 2
-        color_home = TEAM_COLORS.get(game['home_abrv'], self.COLOURS['white'])
-        if game['home_score'] < game['away_score']:
-            color_home = (color_home[0] // 3, color_home[1] // 3, color_home[2] // 3)
         self.draw['full'].text((x, 10), str(home_score), font=self.FONTS['lrg_bold'], fill=color_home)
 
         # Cycle events (goals/red cards) at the bottom

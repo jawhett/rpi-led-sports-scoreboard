@@ -104,29 +104,78 @@ class GamesScene(Scene):
         self.draw['full'].text((31, 21), date.strftime('%b %-d'), font=self.FONTS['sm'], fill=self.COLOURS['white'])
 
 
-    def build_game_not_started_image(self, game):
+    def build_game_not_started_image(self, game, rotation_mode=0):
         """ Builds image for when the game has yet to start.
         Includes team logos and start time.
 
         Args:
             game (dict): Dictionary with all details of a specific game.
         """
+        from utils import image_utils
+        from PIL import Image
+        import os
+        from utils.font_utils import get_text_3x5_width, draw_text_3x5
 
-        # First, add the team logos to the left and right images.
-        self.add_team_logos_to_image(game)        
+        image_utils.clear_image(self.images['full'], self.draw['full'])
 
-        # Add 'Today' to the centre image.
-        self.draw['centre'].text((0, -1), 'T', font=self.FONTS['med'], fill=self.COLOURS['white']) # Text has some padding on the top that needs to be accounted for.
-        self.draw['centre'].text((4, 1), 'o', font=self.FONTS['sm'], fill=self.COLOURS['white'])
-        self.draw['centre'].text((8, 1), 'd', font=self.FONTS['sm'], fill=self.COLOURS['white'])
-        self.draw['centre'].text((12, 1), 'a', font=self.FONTS['sm'], fill=self.COLOURS['white'])
-        self.draw['centre'].text((16, 1), 'y', font=self.FONTS['sm'], fill=self.COLOURS['white'])
+        away_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["away_abrv"]}.png' if game["away_abrv"] not in getattr(self, 'alt_logos', {}) else f'assets/images/{self.LEAGUE}/teams_alt/{game["away_abrv"]}_{self.alt_logos[game["away_abrv"]]}.png'
+        if os.path.exists(away_logo_path):
+            try:
+                away_logo = Image.open(away_logo_path)
+                away_logo = image_utils.crop_image(away_logo)
+                away_logo.thumbnail((24, 16))
+                x = (32 - away_logo.width) // 2
+                y = (18 - away_logo.height) // 2
+                self.images['full'].paste(away_logo, (x, max(0, y)))
+            except Exception:
+                pass
 
-        # Add '@' to the centre image.
-        self.draw['centre'].text((5, 7), '@', font=self.FONTS['lrg'], fill=self.COLOURS['white'])
+        home_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["home_abrv"]}.png' if game["home_abrv"] not in getattr(self, 'alt_logos', {}) else f'assets/images/{self.LEAGUE}/teams_alt/{game["home_abrv"]}_{self.alt_logos[game["home_abrv"]]}.png'
+        if os.path.exists(home_logo_path):
+            try:
+                home_logo = Image.open(home_logo_path)
+                home_logo = image_utils.crop_image(home_logo)
+                home_logo.thumbnail((24, 16))
+                x = 32 + (32 - home_logo.width) // 2
+                y = (18 - home_logo.height) // 2
+                self.images['full'].paste(home_logo, (x, max(0, y)))
+            except Exception:
+                pass
 
-        # Add the start time to the centre image.
-        self.add_time_to_image(game)
+        w = len(game['away_abrv']) * 5
+        x = 16 - w // 2
+        self.draw['full'].text((x, 18), game['away_abrv'], font=self.FONTS['sm_bold'], fill=self.COLOURS['white'])
+
+        w = len(game['home_abrv']) * 5
+        x = 48 - w // 2
+        self.draw['full'].text((x, 18), game['home_abrv'], font=self.FONTS['sm_bold'], fill=self.COLOURS['white'])
+
+        if hasattr(self, 'get_not_started_banner_text'):
+            banner_text, banner_color = self.get_not_started_banner_text(game, rotation_mode)
+        else:
+            from datetime import datetime as dt
+            game_date = game['start_datetime_local'].date()
+            today = dt.now().astimezone().date()
+            if game_date == today:
+                date_str = "TODAY"
+            elif (game_date - today).days == 1:
+                date_str = "TOMORROW"
+            else:
+                date_str = game['start_datetime_local'].strftime('%b %d').upper()
+                if " 0" in date_str:
+                    date_str = date_str.replace(" 0", " ")
+
+            time_str = game['start_datetime_local'].time().strftime('%I:%M %p')
+            if time_str.startswith('0'):
+                time_str = time_str[1:]
+
+            banner_text = f"{date_str} {time_str}"
+            banner_color = self.COLOURS['white']
+
+        if banner_text:
+            w = get_text_3x5_width(banner_text)
+            x = 32 - w // 2
+            draw_text_3x5(self.draw['full'], max(0, x), 27, banner_text, banner_color)
 
 
     def build_game_in_progress_image(self, game):
@@ -149,31 +198,79 @@ class GamesScene(Scene):
         self.add_score_to_image(game, overriding_team=game['scoring_team'], colour_override=self.COLOURS['red'])
 
 
-    def build_game_complete_image(self, game):
+    def build_game_complete_image(self, game, rotation_mode=0):
         """ Builds image for when the game is complete.
         Include final score and if the game ended in OT, etc.
 
         Args:
             game (dict): Dictionary with all details of a specific game.
         """
+        from utils import image_utils
+        from PIL import Image
+        import os
+        from utils.font_utils import get_text_3x5_width, draw_text_3x5
 
-        # First, add the team logos to the left and right images.
-        self.add_team_logos_to_image(game)
+        image_utils.clear_image(self.images['full'], self.draw['full'])
 
-        # Add 'Final' to the centre image.
-        self.draw['centre'].text((0, -1), 'F', font=self.FONTS['med'], fill=self.COLOURS['white'])
-        self.draw['centre'].text((4, 1), 'i', font=self.FONTS['sm'], fill=self.COLOURS['white'])
-        self.draw['centre'].text((8, 1), 'n', font=self.FONTS['sm'], fill=self.COLOURS['white'])
-        self.draw['centre'].text((13, 1), 'a', font=self.FONTS['sm'], fill=self.COLOURS['white'])
-        self.draw['centre'].text((16, 1), 'l', font=self.FONTS['sm'], fill=self.COLOURS['white'])
+        # 1. Draw Away Team Logo
+        away_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["away_abrv"]}.png' if game["away_abrv"] not in getattr(self, 'alt_logos', {}) else f'assets/images/{self.LEAGUE}/teams_alt/{game["away_abrv"]}_{self.alt_logos[game["away_abrv"]]}.png'
+        if os.path.exists(away_logo_path):
+            try:
+                away_logo = Image.open(away_logo_path)
+                away_logo = image_utils.crop_image(away_logo)
+                away_logo.thumbnail((24, 16))
+                x = (32 - away_logo.width) // 2
+                y = (18 - away_logo.height) // 2
+                self.images['full'].paste(away_logo, (x, max(0, y)))
+            except Exception:
+                pass
 
-        # If game ended in OT, etc. add that to the centre image.
-        self.add_final_playing_period_to_image(game) # This exists in child classes.
+        # 2. Draw Home Team Logo
+        home_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["home_abrv"]}.png' if game["home_abrv"] not in getattr(self, 'alt_logos', {}) else f'assets/images/{self.LEAGUE}/teams_alt/{game["home_abrv"]}_{self.alt_logos[game["home_abrv"]]}.png'
+        if os.path.exists(home_logo_path):
+            try:
+                home_logo = Image.open(home_logo_path)
+                home_logo = image_utils.crop_image(home_logo)
+                home_logo.thumbnail((24, 16))
+                x = 32 + (32 - home_logo.width) // 2
+                y = (18 - home_logo.height) // 2
+                self.images['full'].paste(home_logo, (x, max(0, y)))
+            except Exception:
+                pass
 
-        # Add the current score to the centre image, noting if either team scored since previous data pull.
-        self.add_score_to_image(game, overriding_team=game['scoring_team'], colour_override=self.COLOURS['red'])
+        # 3. Top Center shows FINAL
+        status_text = "FINAL"
+        if hasattr(self, 'get_final_status_text'):
+            status_text = self.get_final_status_text(game, rotation_mode)
+        elif hasattr(self, 'get_final_period_str'):
+            period_str = self.get_final_period_str(game)
+            if period_str != "":
+                status_text = f"FINAL/{period_str}"
 
-    
+        w = get_text_3x5_width(status_text)
+        x = 32 - w // 2
+        draw_text_3x5(self.draw['full'], x, 1, status_text, self.COLOURS['red_bright'])
+
+        # Highlight winner and dim loser scores
+        away_score = game['away_score'] if game.get('away_score') is not None else 0
+        home_score = game['home_score'] if game.get('home_score') is not None else 0
+        color_away = self.COLOURS['white'] if away_score >= home_score else self.COLOURS['grey_dark']
+        color_home = self.COLOURS['white'] if home_score >= away_score else self.COLOURS['grey_dark']
+
+        # Draw Away Score directly under logo
+        w = len(str(away_score)) * 8
+        x = 16 - w // 2
+        self.draw['full'].text((x, 18), str(away_score), font=self.FONTS['lrg_bold'], fill=color_away)
+
+        # Draw Home Score directly under logo
+        w = len(str(home_score)) * 8
+        x = 48 - w // 2
+        self.draw['full'].text((x, 18), str(home_score), font=self.FONTS['lrg_bold'], fill=color_home)
+
+        if hasattr(self, 'draw_complete_extras'):
+            self.draw_complete_extras(game, rotation_mode)
+
+
     def build_game_postponed_image(self, game):
         """ Builds image for when the game has been postponed.
 
