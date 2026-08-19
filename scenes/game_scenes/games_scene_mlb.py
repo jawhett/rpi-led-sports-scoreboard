@@ -135,7 +135,7 @@ class MLBGamesScene(GamesScene):
                     print(f"Unexpected game status encountered from API: {game['status']}.")
 
                 # Transition the image in on the matrix.
-                self.transition_image(direction='in')
+                self.transition_image(direction='in', image_already_combined=True)
 
                 # If a run was scored, do score fade animation (if enabled).
                 if self.settings['score_alerting']['score_coloured'] and self.settings['score_alerting']['score_fade_animation']:
@@ -144,7 +144,7 @@ class MLBGamesScene(GamesScene):
                 
                 # Hold image for calculated duration and transition out.
                 sleep(self.settings['game_display_duration'])
-                self.transition_image(direction='out')
+                self.transition_image(direction='out', image_already_combined=True)
         
         # If there's no games to display, and splash is disabled, build and display the no games image.
         elif not self.settings['splash']['display_splash']:
@@ -196,63 +196,65 @@ class MLBGamesScene(GamesScene):
         """
         image_utils.clear_image(self.images['full'], self.draw['full'])
 
-        # 1. Draw Away Team Logo
+        # 1. TOP 5 PIXELS (rows 0..4, cols 0..63): LIVE SCROLLING TICKER / INFO BANNER
+        outs_num = game.get('outs', 0)
+        runners = []
+        if game.get('runner_on_first'): runners.append("1ST")
+        if game.get('runner_on_second'): runners.append("2ND")
+        if game.get('runner_on_third'): runners.append("3RD")
+        bases_str = "LOADED" if len(runners) == 3 else (",".join(runners) if runners else "EMPTY")
+        banner_text = f"OUTS: {outs_num} BASES: {bases_str}"
+        banner_color = self.COLOURS['yellow_bright']
+
+        w_banner = get_text_3x5_width(banner_text)
+        x_banner = 32 - w_banner // 2
+        draw_text_3x5(self.draw['full'], max(0, min(x_banner, 64 - w_banner)), 0, banner_text, banner_color)
+
+        # 2. ROWS 5..26: TEAM LOGOS (22x22) & CENTER INFO
         away_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["away_abrv"]}.png' if game["away_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["away_abrv"]}_{self.alt_logos[game["away_abrv"]]}.png'
         if os.path.exists(away_logo_path):
             try:
                 away_logo = Image.open(away_logo_path)
                 away_logo = image_utils.crop_image(away_logo)
-                away_logo.thumbnail((24, 16))
-                x = 1
-                y = 0
-                self.images['full'].paste(away_logo, (x, max(0, y)))
+                away_logo.thumbnail((22, 22))
+                self.images['full'].paste(away_logo, (0, 5))
             except Exception as e:
                 pass
 
-        # 2. Draw Home Team Logo
         home_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["home_abrv"]}.png' if game["home_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["home_abrv"]}_{self.alt_logos[game["home_abrv"]]}.png'
         if os.path.exists(home_logo_path):
             try:
                 home_logo = Image.open(home_logo_path)
                 home_logo = image_utils.crop_image(home_logo)
-                home_logo.thumbnail((24, 16))
-                x = 63 - home_logo.width
-                y = 0
-                self.images['full'].paste(home_logo, (x, max(0, y)))
+                home_logo.thumbnail((22, 22))
+                self.images['full'].paste(home_logo, (42, 5))
             except Exception as e:
                 pass
 
-        # 3. Draw Inning Indicator (top center, yellow - y=1)
+        # Inning Indicator (center channel y=10)
         self.add_playing_period_to_image(game)
 
-        # 4. Draw Scores
-        away_score = game['away_score']
-        home_score = game['home_score']
+        # 3. BOTTOM 5 PIXELS (rows 27..31, cols 0..63): CENTER SCORE & CORNER INDICATORS
+        away_score_str = str(game['away_score'])
+        home_score_str = str(game['home_score'])
 
-        color_away = self.COLOURS['white']
-        color_home = self.COLOURS['white']
+        color_away = data_utils.TEAM_COLORS.get(game['away_abrv'], self.COLOURS['white'])
+        color_home = data_utils.TEAM_COLORS.get(game['home_abrv'], self.COLOURS['white'])
         if self.settings['score_alerting']['score_coloured'] and game.get('away_team_scored'):
             color_away = self.COLOURS['red_bright']
         if self.settings['score_alerting']['score_coloured'] and game.get('home_team_scored'):
             color_home = self.COLOURS['red_bright']
 
-        # Determine if we should offset scores down
-        y_offset = 16
-        away_font = self.FONTS['lrg_bold']
-        home_font = self.FONTS['lrg_bold']
+        w_away = get_text_3x5_width(away_score_str)
+        w_home = get_text_3x5_width(home_score_str)
 
-        w = len(str(away_score)) * 8
-        x = 12 - w // 2
-        self.draw['full'].text((x, y_offset), str(away_score), font=away_font, fill=color_away)
+        x_away = 26 - w_away // 2
+        x_dash = 31
+        x_home = 36 - w_home // 2
 
-        w = len(str(home_score)) * 8
-        x = 52 - w // 2
-        self.draw['full'].text((x, y_offset), str(home_score), font=home_font, fill=color_home)
-
-        # 5. Draw Outs and Runners
-        if self.settings['display_outs_and_bases']:
-            self.add_outs_to_image(game)
-            self.add_runners_on_base_to_image(game)
+        draw_text_3x5(self.draw['full'], x_away, 27, away_score_str, color_away)
+        draw_text_3x5(self.draw['full'], x_dash, 27, "-", self.COLOURS['grey_light'])
+        draw_text_3x5(self.draw['full'], x_home, 27, home_score_str, color_home)
 
 
 
@@ -261,19 +263,19 @@ class MLBGamesScene(GamesScene):
         col_offset = 28 if game['inning_num'] <= 9 else 25
 
         if game['inning_state'] in ['Top', 'Start']:
-            self.draw['full'].line(((col_offset, 1), (col_offset, 6)), fill=self.COLOURS['white'])
-            self.draw['full'].line(((col_offset, 1), (col_offset-2, 3)), fill=self.COLOURS['white'])
-            self.draw['full'].line(((col_offset, 1), (col_offset+2, 3)), fill=self.COLOURS['white'])
+            self.draw['full'].line(((col_offset, 10), (col_offset, 15)), fill=self.COLOURS['white'])
+            self.draw['full'].line(((col_offset, 10), (col_offset-2, 12)), fill=self.COLOURS['white'])
+            self.draw['full'].line(((col_offset, 10), (col_offset+2, 12)), fill=self.COLOURS['white'])
         elif game['inning_state'] == 'Bottom':
-            self.draw['full'].line(((col_offset, 7), (col_offset, 2)), fill=self.COLOURS['white'])
-            self.draw['full'].line(((col_offset, 7), (col_offset-2, 5)), fill=self.COLOURS['white'])
-            self.draw['full'].line(((col_offset, 7), (col_offset+2, 5)), fill=self.COLOURS['white'])
+            self.draw['full'].line(((col_offset, 15), (col_offset, 10)), fill=self.COLOURS['white'])
+            self.draw['full'].line(((col_offset, 15), (col_offset-2, 13)), fill=self.COLOURS['white'])
+            self.draw['full'].line(((col_offset, 15), (col_offset+2, 13)), fill=self.COLOURS['white'])
         elif game['inning_state'] == 'End':
-            self.draw['full'].text((col_offset-1, -1), 'E', font=self.FONTS['sm'], fill=self.COLOURS['white'])
+            draw_text_3x5(self.draw['full'], col_offset-1, 10, 'E', self.COLOURS['white'])
         elif game['inning_state'] == 'Middle':
-            self.draw['full'].line(((col_offset-2, 4), (col_offset+2, 4)), fill=self.COLOURS['white'])
+            self.draw['full'].line(((col_offset-2, 12), (col_offset+2, 12)), fill=self.COLOURS['white'])
 
-        self.draw['full'].text((col_offset+5, -1), str(game['inning_num']), font=self.FONTS['sm'], fill=self.COLOURS['white'])
+        draw_text_3x5(self.draw['full'], col_offset+5, 10, str(game['inning_num']), self.COLOURS['white'])
 
 
     def add_outs_to_image(self, game):

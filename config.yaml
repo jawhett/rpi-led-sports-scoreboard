@@ -2,6 +2,7 @@
 scene_order:
   - nba_games
   - nba_fav_team_next_game
+  - suns_countdown
   - nba_standings
   - nfl_games
   - nfl_fav_team_next_game
@@ -278,8 +279,8 @@ scene_settings:
 
 # Brightness settings.
 brightness:
-  brightness_mode: 'auto' #'auto', 'static'.
-  max_brightness: 100
+  brightness_mode: 'static' #'auto', 'static'.
+  max_brightness: 85
 
 
 # Hardware configuration details.
@@ -295,6 +296,6 @@ display_behavior:
     start_time_local: '01:00'
     end_time_local: '07:00'
     override_for_live_favorites: true
-  idle_loop_pause_seconds: 120
-  live_loop_pause_seconds: 60
+  idle_loop_pause_seconds: 2
+  live_loop_pause_seconds: 2
   skip_empty_scenes: true

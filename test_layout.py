@@ -1,3 +1,4 @@
+from datetime import datetime as dt
 import os
 import math
 from PIL import Image, ImageDraw, ImageFont
@@ -69,27 +70,63 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0):
     status_code = game['status_code']
     league = game['league']
 
-    # Logos as big as possible: 24x16 for all views
-    logo_size = (24, 16)
+    # --- TOP 5 PIXELS (rows 0..4, cols 0..63): LIVE SCROLLING TICKER / INFO BANNER ---
+    banner_text = ""
+    banner_color = COLOURS['white']
+    if status_code == 2:  # In Progress
+        if league == 'NFL' and game.get('down_distance_text'):
+            banner_text = compact_down_distance(game['down_distance_text'])
+            banner_color = COLOURS['white']
+        elif league in ('NBA', 'WNBA') and (game.get('away_fouls') is not None or game.get('home_fouls') is not None):
+            banner_text = f"FOULS {game.get('away_fouls', 0)}-{game.get('home_fouls', 0)}"
+            banner_color = COLOURS['red_bright'] if (game.get('away_fouls', 0) >= 5 or game.get('home_fouls', 0) >= 5) else COLOURS['yellow_bright']
+        elif league == 'MLB':
+            outs_num = game.get('outs', 0)
+            runners = []
+            if game.get('runner_on_first'): runners.append("1ST")
+            if game.get('runner_on_second'): runners.append("2ND")
+            if game.get('runner_on_third'): runners.append("3RD")
+            bases_str = "LOADED" if len(runners) == 3 else (",".join(runners) if runners else "EMPTY")
+            banner_text = f"OUTS: {outs_num} BASES: {bases_str}"
+            banner_color = COLOURS['yellow_bright']
 
+        if rotation_mode == 2 and league == 'NFL' and game.get('home_win_pct') is not None:
+            pct = game['home_win_pct']
+            fav_abrv = game['home_abrv'] if pct >= 50 else game['away_abrv']
+            fav_pct = int(pct if pct >= 50 else (100 - pct))
+            banner_text = f"{fav_abrv} WIN PROBABILITY {fav_pct}%"
+            banner_color = COLOURS['green_bright']
+
+    elif status_code == 1:  # Scheduled
+        parsed_odds = parse_odds(game.get('odds_str'))
+        if parsed_odds and 'fav_team' in parsed_odds and 'spread' in parsed_odds:
+            banner_text = f"{parsed_odds['fav_team']} {parsed_odds['spread']}"
+            banner_color = COLOURS['yellow_bright']
+        else:
+            banner_text = game.get('odds_str', 'MATCHUP UPCOMING')
+
+    elif status_code == 3:  # Completed
+        banner_text = "GAME FINAL"
+        banner_color = COLOURS['red_bright']
+
+    if not banner_text:
+        banner_text = f"{league} LIVE"
+
+    w_banner = get_text_3x5_width(banner_text)
+    x_banner = 32 - w_banner // 2
+    draw_text_3x5(draw, max(0, min(x_banner, 64 - w_banner)), 0, banner_text, banner_color)
+
+    # --- ROWS 5..26: TEAM LOGOS (22x22) & CENTER INFO ---
+    logo_size = (22, 22)
     if away_logo:
         away_logo.thumbnail(logo_size)
+        img.paste(away_logo, (0, 5))
+
     if home_logo:
         home_logo.thumbnail(logo_size)
+        img.paste(home_logo, (42, 5))
 
-    # Draw Away Logo (clean floating top-left)
-    if away_logo:
-        x = 1
-        y = 0
-        img.paste(away_logo, (x, max(0, y)))
-
-    # Draw Home Logo (clean floating top-right)
-    if home_logo:
-        x = 63 - home_logo.width
-        y = 0
-        img.paste(home_logo, (x, max(0, y)))
-
-    # 2. Top Center channel (cols 14..49, y=1..10) for Clock / Period or FINAL
+    # Center Channel (cols 22..41, rows 5..26): Time / Clock / Status
     if status_code == 2:  # In Progress
         if clock_seconds_override is not None:
             m = clock_seconds_override // 60
@@ -98,137 +135,108 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0):
         else:
             clock_str = game['period_time_remaining']
         
-        status_text = f"{game['period_str']} {clock_str}"
+        status_text = f"{game['period_str']}"
         w = get_text_3x5_width(status_text)
-        x = 32 - w // 2
-        draw_text_3x5(draw, x, 1, status_text, COLOURS['yellow'])
+        draw_text_3x5(draw, 32 - w // 2, 7, status_text, COLOURS['yellow'])
 
-        # Draw clean possession indicator dots right next to status channel
-        if league == 'NFL' and game.get('possession'):
-            poss_color = COLOURS['red_bright'] if game.get('is_red_zone') else COLOURS['yellow_bright']
-            if game['possession'] == 'away':
-                draw.rectangle([(x - 4, 4), (x - 3, 5)], fill=poss_color)
-            elif game['possession'] == 'home':
-                draw.rectangle([(x + w + 2, 4), (x + w + 3, 5)], fill=poss_color)
+        w_clock = get_text_3x5_width(clock_str)
+        draw_text_3x5(draw, 32 - w_clock // 2, 14, clock_str, COLOURS['white'])
 
     elif status_code == 3:  # Completed
         ot_str = game.get('ot_str', '')
         status_text = f"FINAL/{ot_str}" if ot_str else "FINAL"
         w = get_text_3x5_width(status_text)
-        x = 32 - w // 2
-        draw_text_3x5(draw, x, 1, status_text, COLOURS['red_bright'])
-
-    # 3. Draw Timeouts/Bonus Indicators (row 11) - placed cleanly under the logos
-    if status_code != 1:  # Not for Scheduled games
-        if league == 'NFL':
-            # 3 timeout dots for NFL
-            for i in range(3):
-                color = COLOURS['yellow_bright'] if i < game.get('away_timeouts', 0) else COLOURS['grey_dark']
-                draw.point((1 + i * 3, 10), fill=color)
-                draw.point((2 + i * 3, 10), fill=color)
-            for i in range(3):
-                color = COLOURS['yellow_bright'] if i < game.get('home_timeouts', 0) else COLOURS['grey_dark']
-                draw.point((53 + i * 3, 10), fill=color)
-                draw.point((54 + i * 3, 10), fill=color)
-        else:  # NBA/WNBA
-            # 7 timeout dots for NBA
-            for i in range(7):
-                color = COLOURS['yellow_bright'] if i < game.get('away_timeouts', 0) else COLOURS['grey_dark']
-                draw.point((0 + i * 2, 10), fill=color)
-            for i in range(7):
-                color = COLOURS['yellow_bright'] if i < game.get('home_timeouts', 0) else COLOURS['grey_dark']
-                draw.point((50 + i * 2, 10), fill=color)
-            
-            # NBA Bonus lights next to timeouts on row 11
-            if game.get('away_fouls', 0) >= 5:
-                draw.rectangle([(15, 10), (17, 10)], fill=COLOURS['red_bright'])
-            if game.get('home_fouls', 0) >= 5:
-                draw.rectangle([(46, 10), (48, 10)], fill=COLOURS['red_bright'])
-
-    # 4. Draw Scores (row 11..30) - using FONTS['giant_bold'] (10x20)
-    if status_code == 2 or status_code == 3:  # In Progress or Completed
-        # Draw Away Score
-        away_score = game['away_score']
-        away_color = TEAM_COLORS.get(game['away_abrv'], COLOURS['white'])
-        if status_code == 3 and game['away_score'] < game['home_score']:
-            away_color = (away_color[0] // 3, away_color[1] // 3, away_color[2] // 3)
-            
-        w = len(str(away_score)) * 8
-        x = 12 - w // 2
-        draw.text((x, 16), str(away_score), font=FONTS['lrg_bold'], fill=away_color)
-
-        # Draw Home Score
-        home_score = game['home_score']
-        home_color = TEAM_COLORS.get(game['home_abrv'], COLOURS['white'])
-        if status_code == 3 and game['home_score'] < game['away_score']:
-            home_color = (home_color[0] // 3, home_color[1] // 3, home_color[2] // 3)
-            
-        w = len(str(home_score)) * 8
-        x = 52 - w // 2
-        draw.text((x, 16), str(home_score), font=FONTS['lrg_bold'], fill=home_color)
-
-    # 5. Horizontal bottom banner (row 27..31) for secondary info (leaves row 26 blank for padding)
-    if status_code == 2:  # In Progress
-        banner_text = ""
-        banner_color = COLOURS['white']
-
-        if league == 'NFL' and game.get('down_distance_text'):
-            banner_text = compact_down_distance(game['down_distance_text'])
-            banner_color = COLOURS['white']
-        elif league in ('NBA', 'WNBA') and (game.get('away_fouls') is not None or game.get('home_fouls') is not None):
-            banner_text = f"FOULS {game.get('away_fouls', 0)}-{game.get('home_fouls', 0)}"
-            if game.get('away_fouls', 0) >= 5 or game.get('home_fouls', 0) >= 5:
-                banner_color = COLOURS['red_bright']
-            else:
-                banner_color = COLOURS['yellow_bright']
-
-        # Handle win probability logic specifically
-        if rotation_mode == 2 and league == 'NFL' and game.get('home_win_pct') is not None:
-            pct = game['home_win_pct']
-            fav_abrv = game['home_abrv'] if pct >= 50 else game['away_abrv']
-            fav_pct = int(pct if pct >= 50 else (100 - pct))
-            banner_text = f"{fav_abrv} WIN PROB {fav_pct}%"
-            banner_color = COLOURS['green_bright']
-
-        # Center banner text using our 3x5 font helper (drawn at y=27 to create 1px padding on row 26)
-        if banner_text:
-            w = get_text_3x5_width(banner_text)
-            x = 32 - w // 2
-            draw_text_3x5(draw, x, 27, banner_text, banner_color)
+        draw_text_3x5(draw, 32 - w // 2, 10, status_text, COLOURS['red_bright'])
 
     elif status_code == 1:  # Scheduled
-        parsed_odds = parse_odds(game.get('odds_str'))
-        # Show matchup abbreviations below logos for scheduled (using sm_bold for smaller names, y=18)
-        w = len(game['away_abrv']) * 5
-        x = 12 - w // 2
-        draw.text((x, 18), game['away_abrv'], font=FONTS['sm_bold'], fill=COLOURS['white'])
+        date_str = game.get('date_str', 'TODAY')
+        time_str = game.get('time_str', '')
+        w_d = get_text_3x5_width(date_str)
+        draw_text_3x5(draw, 32 - w_d // 2, 7, date_str, COLOURS['yellow_bright'])
+        w_t = get_text_3x5_width(time_str)
+        draw_text_3x5(draw, 32 - w_t // 2, 14, time_str, COLOURS['white'])
 
-        w = len(game['home_abrv']) * 5
-        x = 52 - w // 2
-        draw.text((x, 18), game['home_abrv'], font=FONTS['sm_bold'], fill=COLOURS['white'])
+    # --- BOTTOM 5 PIXELS (rows 27..31, cols 0..63): CENTER SCORES & CORNER INDICATORS ---
+    if status_code in (2, 3):  # Live or Final
+        away_score_str = str(game['away_score'])
+        home_score_str = str(game['home_score'])
 
-        # Banner at the bottom for kickoff / odds (starting at y=27)
-        if rotation_mode == 1 and parsed_odds:
-            odds_str = f"{parsed_odds['fav_team']} {parsed_odds['spread']}"
-            if parsed_odds['ou']:
-                odds_str = f"{odds_str} U{parsed_odds['ou']}"
-            w = get_text_3x5_width(odds_str)
-            x = 32 - w // 2
-            draw_text_3x5(draw, x, 27, odds_str, COLOURS['yellow_bright'])
-        else:
-            time_str = f"{game['date_str']} {game['time_str']}"
-            w = get_text_3x5_width(time_str)
-            x = 32 - w // 2
-            draw_text_3x5(draw, x, 27, time_str, COLOURS['white'])
+        away_color = TEAM_COLORS.get(game['away_abrv'], COLOURS['white'])
+        home_color = TEAM_COLORS.get(game['home_abrv'], COLOURS['white'])
+        if status_code == 3 and game['away_score'] < game['home_score']:
+            away_color = (away_color[0] // 3, away_color[1] // 3, away_color[2] // 3)
+        elif status_code == 3 and game['home_score'] < game['away_score']:
+            home_color = (home_color[0] // 3, home_color[1] // 3, home_color[2] // 3)
 
-    elif status_code == 3:  # Completed
-        # Display OT details in bottom banner
-        ot_str = game.get('ot_str', '')
-        banner_text = f"FINAL / {ot_str}" if ot_str else "FINAL"
+        w_away = get_text_3x5_width(away_score_str)
+        w_home = get_text_3x5_width(home_score_str)
+
+        x_away = 26 - w_away // 2
+        x_dash = 31
+        x_home = 36 - w_home // 2
+
+        draw_text_3x5(draw, x_away, 27, away_score_str, away_color)
+        draw_text_3x5(draw, x_dash, 27, "-", COLOURS['grey_light'])
+        draw_text_3x5(draw, x_home, 27, home_score_str, home_color)
+
+        # Left Corner Indicator (cols 0..17, rows 27..31): Away timeouts / fouls
+        for i in range(min(3, game.get('away_timeouts', 0))):
+            draw.rectangle([(1 + i * 4, 28), (3 + i * 4, 30)], fill=COLOURS['yellow_bright'])
+
+        # Right Corner Indicator (cols 46..63, rows 27..31): Home timeouts / fouls
+        for i in range(min(3, game.get('home_timeouts', 0))):
+            draw.rectangle([(51 + i * 4, 28), (53 + i * 4, 30)], fill=COLOURS['yellow_bright'])
+
+    elif status_code == 1:  # Scheduled
+        vs_str = "@" if game.get('home_or_away') == 'away' else "VS"
+        w = get_text_3x5_width(vs_str)
+        draw_text_3x5(draw, 32 - w // 2, 27, vs_str, COLOURS['yellow'])
+
+    if banner_text:
         w = get_text_3x5_width(banner_text)
         x = 32 - w // 2
-        draw_text_3x5(draw, x, 27, banner_text, COLOURS['red_bright'])
+        draw_text_3x5(draw, max(23, min(x, 41 - w)), 26, banner_text, banner_color)
 
+    return img
+
+
+def build_suns_countdown_mock(next_game):
+    img = Image.new('RGB', (64, 32), (0, 0, 0))
+    draw = ImageDraw.Draw(img)
+
+    suns_logo = load_logo('NBA', 'PHX')
+    if suns_logo:
+        suns_logo.thumbnail((28, 28))
+        y_pos = (32 - suns_logo.height) // 2
+        img.paste(suns_logo, (1, max(0, y_pos)))
+
+    if next_game and next_game.get('opponent_abrv'):
+        opp_logo = load_logo('NBA', next_game['opponent_abrv'])
+        if opp_logo:
+            opp_logo.thumbnail((22, 22))
+            x_pos = 63 - opp_logo.width
+            y_pos = (32 - opp_logo.height) // 2
+            img.paste(opp_logo, (x_pos, max(0, y_pos)))
+
+    SUNS_ORANGE = (229, 96, 32)
+    draw_text_3x5(draw, 31, 1, "PHX SUNS", SUNS_ORANGE)
+
+    from datetime import datetime as dt
+    cur_datetime = dt.today().astimezone()
+    if next_game and not next_game.get('is_completed'):
+        start_dt = next_game['start_datetime_local']
+        days_diff = (start_dt.date() - cur_datetime.date()).days
+        if days_diff > 1 and days_diff <= 60:
+            count_str = f"IN {days_diff} DAYS"
+            draw_text_3x5(draw, 30, 9, count_str, COLOURS['yellow_bright'])
+            date_str = start_dt.strftime('%b %d').upper()
+            draw_text_3x5(draw, 30, 17, date_str, COLOURS['white'])
+        elif days_diff == 0:
+            draw_text_3x5(draw, 30, 9, "GAMEDAY!", COLOURS['yellow_bright'])
+        venue_str = f"@ {next_game['opponent_abrv']}" if next_game.get('home_or_away') == 'away' else f"VS {next_game['opponent_abrv']}"
+        w = get_text_3x5_width(venue_str)
+        x_b = 46 - w // 2
+        draw_text_3x5(draw, max(30, x_b), 25, venue_str, COLOURS['white'])
     return img
 
 if __name__ == '__main__':
@@ -281,4 +289,12 @@ if __name__ == '__main__':
     build_mock_image(test_live_nfl, clock_seconds_override=135, rotation_mode=2).save('test_layout_nfl_live_winprob.png')
     build_mock_image(test_sched_nfl, rotation_mode=1).save('test_layout_nfl_sched_odds.png')
     
+    test_suns_next = {
+        'opponent_abrv': 'DET',
+        'home_or_away': 'away',
+        'start_datetime_local': dt.strptime('2026-10-05 16:00:00', '%Y-%m-%d %H:%M:%S').astimezone(tz=None),
+        'is_completed': False
+    }
+    build_suns_countdown_mock(test_suns_next).save('test_layout_suns_countdown.png')
+
     print("Mockups generated!")

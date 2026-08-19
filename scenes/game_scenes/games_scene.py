@@ -106,10 +106,6 @@ class GamesScene(Scene):
 
     def build_game_not_started_image(self, game, rotation_mode=0):
         """ Builds image for when the game has yet to start.
-        Includes team logos and start time.
-
-        Args:
-            game (dict): Dictionary with all details of a specific game.
         """
         from utils import image_utils
         from PIL import Image
@@ -118,15 +114,29 @@ class GamesScene(Scene):
 
         image_utils.clear_image(self.images['full'], self.draw['full'])
 
+        # 1. TOP 5 PIXELS (rows 0..4, cols 0..63): LIVE TICKER / INFO BANNER
+        banner_text = ""
+        banner_color = self.COLOURS['yellow_bright']
+        if hasattr(self, 'get_not_started_banner_text'):
+            banner_text, banner_color = self.get_not_started_banner_text(game, rotation_mode)
+        else:
+            banner_text = game.get('odds_str', 'MATCHUP UPCOMING')
+
+        if not banner_text:
+            banner_text = f"{self.LEAGUE} UPCOMING"
+
+        w_banner = get_text_3x5_width(banner_text)
+        x_banner = 32 - w_banner // 2
+        draw_text_3x5(self.draw['full'], max(0, min(x_banner, 64 - w_banner)), 0, banner_text, banner_color)
+
+        # 2. ROWS 5..26: TEAM LOGOS (22x22) & CENTER INFO
         away_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["away_abrv"]}.png' if game["away_abrv"] not in getattr(self, 'alt_logos', {}) else f'assets/images/{self.LEAGUE}/teams_alt/{game["away_abrv"]}_{self.alt_logos[game["away_abrv"]]}.png'
         if os.path.exists(away_logo_path):
             try:
                 away_logo = Image.open(away_logo_path)
                 away_logo = image_utils.crop_image(away_logo)
-                away_logo.thumbnail((24, 16))
-                x = 1
-                y = 0
-                self.images['full'].paste(away_logo, (x, max(0, y)))
+                away_logo.thumbnail((22, 22))
+                self.images['full'].paste(away_logo, (0, 5))
             except Exception:
                 pass
 
@@ -135,75 +145,49 @@ class GamesScene(Scene):
             try:
                 home_logo = Image.open(home_logo_path)
                 home_logo = image_utils.crop_image(home_logo)
-                home_logo.thumbnail((24, 16))
-                x = 63 - home_logo.width
-                y = 0
-                self.images['full'].paste(home_logo, (x, max(0, y)))
+                home_logo.thumbnail((22, 22))
+                self.images['full'].paste(home_logo, (42, 5))
             except Exception:
                 pass
 
-        w = len(game['away_abrv']) * 5
-        x = 12 - w // 2
-        self.draw['full'].text((x, 18), game['away_abrv'], font=self.FONTS['sm_bold'], fill=self.COLOURS['white'])
-
-        w = len(game['home_abrv']) * 5
-        x = 52 - w // 2
-        self.draw['full'].text((x, 18), game['home_abrv'], font=self.FONTS['sm_bold'], fill=self.COLOURS['white'])
-
-        if hasattr(self, 'get_not_started_banner_text'):
-            banner_text, banner_color = self.get_not_started_banner_text(game, rotation_mode)
+        # Center Channel (cols 22..41, rows 5..26): Start Date & Time
+        from datetime import datetime as dt
+        game_date = game['start_datetime_local'].date()
+        today = dt.now().astimezone().date()
+        if game_date == today:
+            date_str = "TODAY"
+        elif (game_date - today).days == 1:
+            date_str = "TOMORROW"
         else:
-            from datetime import datetime as dt
-            game_date = game['start_datetime_local'].date()
-            today = dt.now().astimezone().date()
-            if game_date == today:
-                date_str = "TODAY"
-            elif (game_date - today).days == 1:
-                date_str = "TOMORROW"
-            else:
-                date_str = game['start_datetime_local'].strftime('%b %d').upper()
-                if " 0" in date_str:
-                    date_str = date_str.replace(" 0", " ")
+            date_str = game['start_datetime_local'].strftime('%b %d').upper()
+            if " 0" in date_str: date_str = date_str.replace(" 0", " ")
 
-            time_str = game['start_datetime_local'].time().strftime('%I:%M %p')
-            if time_str.startswith('0'):
-                time_str = time_str[1:]
+        time_str = game['start_datetime_local'].time().strftime('%I:%M %p')
+        if time_str.startswith('0'): time_str = time_str[1:]
 
-            banner_text = f"{date_str} {time_str}"
-            banner_color = self.COLOURS['white']
+        w_d = get_text_3x5_width(date_str)
+        draw_text_3x5(self.draw['full'], 32 - w_d // 2, 7, date_str, self.COLOURS['yellow_bright'])
+        w_t = get_text_3x5_width(time_str)
+        draw_text_3x5(self.draw['full'], 32 - w_t // 2, 14, time_str, self.COLOURS['white'])
 
-        if banner_text:
-            w = get_text_3x5_width(banner_text)
-            x = 32 - w // 2
-            draw_text_3x5(self.draw['full'], max(0, x), 27, banner_text, banner_color)
+        # 3. BOTTOM 5 PIXELS (rows 27..31, cols 0..63): MATCHUP INDICATOR
+        vs_str = "@" if game.get('home_or_away') == 'away' else "VS"
+        w_vs = get_text_3x5_width(vs_str)
+        draw_text_3x5(self.draw['full'], 32 - w_vs // 2, 27, vs_str, self.COLOURS['yellow'])
 
 
     def build_game_in_progress_image(self, game):
         """ Builds image for when the game is in progress.
-        Includes team logos, score, period, and time remaining.
-
-        Args:
-            game (dict): Dictionary with all details of a specific game.
         """
-
-        # First, add the team logos to the left and right images.
         self.add_team_logos_to_image(game)
-
-        # Add the period and time remaining to the centre image.
-        self.add_playing_period_to_image(game) # This exists in child classes.
-        if self.should_display_time_remaining_in_playing_period(game): # This exists in child classes.
+        self.add_playing_period_to_image(game)
+        if self.should_display_time_remaining_in_playing_period(game):
             self.add_time_to_image(game)        
-
-        # Add the current score to the centre image, noting if either team scored since previous data pull.
         self.add_score_to_image(game, overriding_team=game['scoring_team'], colour_override=self.COLOURS['red'])
 
 
     def build_game_complete_image(self, game, rotation_mode=0):
         """ Builds image for when the game is complete.
-        Include final score and if the game ended in OT, etc.
-
-        Args:
-            game (dict): Dictionary with all details of a specific game.
         """
         from utils import image_utils
         from PIL import Image
@@ -212,60 +196,73 @@ class GamesScene(Scene):
 
         image_utils.clear_image(self.images['full'], self.draw['full'])
 
-        # 1. Draw Away Team Logo
+        # 1. TOP 5 PIXELS (rows 0..4, cols 0..63): LIVE TICKER / INFO BANNER
+        banner_text = ""
+        banner_color = self.COLOURS['yellow_bright']
+        if game.get('odds_str'):
+            banner_text = game['odds_str']
+        elif game.get('recap_text'):
+            banner_text = game['recap_text']
+
+        if not banner_text:
+            banner_text = f"{game['away_abrv']} VS {game['home_abrv']}"
+
+        w_banner = get_text_3x5_width(banner_text)
+        x_banner = 32 - w_banner // 2
+        draw_text_3x5(self.draw['full'], max(0, min(x_banner, 64 - w_banner)), 0, banner_text, banner_color)
+
+        # 2. ROWS 5..26: TEAM LOGOS (22x22) & CENTER INFO
         away_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["away_abrv"]}.png' if game["away_abrv"] not in getattr(self, 'alt_logos', {}) else f'assets/images/{self.LEAGUE}/teams_alt/{game["away_abrv"]}_{self.alt_logos[game["away_abrv"]]}.png'
         if os.path.exists(away_logo_path):
             try:
                 away_logo = Image.open(away_logo_path)
                 away_logo = image_utils.crop_image(away_logo)
-                away_logo.thumbnail((24, 16))
-                x = 1
-                y = 0
-                self.images['full'].paste(away_logo, (x, max(0, y)))
+                away_logo.thumbnail((22, 22))
+                self.images['full'].paste(away_logo, (0, 5))
             except Exception:
                 pass
 
-        # 2. Draw Home Team Logo
         home_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["home_abrv"]}.png' if game["home_abrv"] not in getattr(self, 'alt_logos', {}) else f'assets/images/{self.LEAGUE}/teams_alt/{game["home_abrv"]}_{self.alt_logos[game["home_abrv"]]}.png'
         if os.path.exists(home_logo_path):
             try:
                 home_logo = Image.open(home_logo_path)
                 home_logo = image_utils.crop_image(home_logo)
-                home_logo.thumbnail((24, 16))
-                x = 63 - home_logo.width
-                y = 0
-                self.images['full'].paste(home_logo, (x, max(0, y)))
+                home_logo.thumbnail((22, 22))
+                self.images['full'].paste(home_logo, (42, 5))
             except Exception:
                 pass
 
-        # 3. Top Center shows FINAL
+        # Center Status (cols 22..41, rows 5..26): FINAL or F/OT
         status_text = "FINAL"
         if hasattr(self, 'get_final_status_text'):
             status_text = self.get_final_status_text(game, rotation_mode)
         elif hasattr(self, 'get_final_period_str'):
             period_str = self.get_final_period_str(game)
             if period_str != "":
-                status_text = f"FINAL/{period_str}"
+                status_text = f"F/{period_str}"
 
-        w = get_text_3x5_width(status_text)
-        x = 32 - w // 2
-        draw_text_3x5(self.draw['full'], x, 1, status_text, self.COLOURS['red_bright'])
+        w_s = get_text_3x5_width(status_text)
+        draw_text_3x5(self.draw['full'], 32 - w_s // 2, 10, status_text, self.COLOURS['red_bright'])
 
-        # Highlight winner and dim loser scores
+        # 3. BOTTOM 5 PIXELS (rows 27..31, cols 0..63): CENTER SCORES
         away_score = game['away_score'] if game.get('away_score') is not None else 0
         home_score = game['home_score'] if game.get('home_score') is not None else 0
         color_away = self.COLOURS['white'] if away_score >= home_score else self.COLOURS['grey_dark']
         color_home = self.COLOURS['white'] if home_score >= away_score else self.COLOURS['grey_dark']
 
-        # Draw Away Score directly under logo
-        w = len(str(away_score)) * 8
-        x = 12 - w // 2
-        self.draw['full'].text((x, 16), str(away_score), font=self.FONTS['lrg_bold'], fill=color_away)
+        away_score_str = str(away_score)
+        home_score_str = str(home_score)
 
-        # Draw Home Score directly under logo
-        w = len(str(home_score)) * 8
-        x = 52 - w // 2
-        self.draw['full'].text((x, 16), str(home_score), font=self.FONTS['lrg_bold'], fill=color_home)
+        w_away = get_text_3x5_width(away_score_str)
+        w_home = get_text_3x5_width(home_score_str)
+
+        x_away = 26 - w_away // 2
+        x_dash = 31
+        x_home = 36 - w_home // 2
+
+        draw_text_3x5(self.draw['full'], x_away, 27, away_score_str, color_away)
+        draw_text_3x5(self.draw['full'], x_dash, 27, "-", self.COLOURS['grey_light'])
+        draw_text_3x5(self.draw['full'], x_home, 27, home_score_str, color_home)
 
         if hasattr(self, 'draw_complete_extras'):
             self.draw_complete_extras(game, rotation_mode)
@@ -374,12 +371,12 @@ class GamesScene(Scene):
         """
         
         # Determine the path of the image to load. Standard path or alt logo.
-        away_logo_path = f'assets/images/{self.LEAGUE}/teams/{game['away_abrv']}.png' if game['away_abrv'] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game['away_abrv']}_{self.alt_logos[game['away_abrv']]}.png'
+        away_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["away_abrv"]}.png' if game["away_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["away_abrv"]}_{self.alt_logos[game["away_abrv"]]}.png'
         
         # Load, crop, and resize the away team logo.
         away_logo = Image.open(away_logo_path)
         away_logo = image_utils.crop_image(away_logo)
-        away_logo.thumbnail((24, 16))
+        away_logo.thumbnail((24, 32))
 
         # Determine placement and add logo to the left image.
         away_placement_in_image = (
@@ -389,12 +386,12 @@ class GamesScene(Scene):
         self.images['left'].paste(away_logo, away_placement_in_image)
 
         # Determine the path of the image to load. Standard path or alt logo.
-        home_logo_path = f'assets/images/{self.LEAGUE}/teams/{game['home_abrv']}.png' if game['home_abrv'] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game['home_abrv']}_{self.alt_logos[game['home_abrv']]}.png'
+        home_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["home_abrv"]}.png' if game["home_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["home_abrv"]}_{self.alt_logos[game["home_abrv"]]}.png'
 
         # Load, crop, and resize the home team logo.
         home_logo = Image.open(home_logo_path)
         home_logo = image_utils.crop_image(home_logo)
-        home_logo.thumbnail((24, 16))
+        home_logo.thumbnail((24, 32))
 
         # Determine placement and add logo to the right image.
         home_placement_in_image = (
@@ -427,32 +424,31 @@ class GamesScene(Scene):
         away_score_digits = len(str(game['away_score']))
         home_score_digits = len(str(game['home_score']))
         
-        # If both scores are <10, display large numbers and a hyphen in set locations.
+        # Single digit scores (e.g. MLB, NHL, PWHL, World Cup): large bold numbers with hyphen
         if max(away_score_digits, home_score_digits) == 1:
-            # Add the hyphen to the centre image.
             self.draw['centre'].text((8, 19), "-", font=self.FONTS['sm_bold'], fill=self.COLOURS['white'])
-
-            # Add the scores to the centre image with the colour determined above.
             self.draw['centre'].text((0, 16), str(game['away_score']), font=self.FONTS['lrg_bold'], fill=colour_away)
             self.draw['centre'].text((12, 16), str(game['home_score']), font=self.FONTS['lrg_bold'], fill=colour_home)
 
-        # Otherwise, smaller numbers and no hyphen.
+        # 2-digit scores (e.g. NFL, MLB high scoring, WNBA): crisp side-by-side aligned bold numbers
+        elif max(away_score_digits, home_score_digits) == 2:
+            self.draw['centre'].text((9, 19), "-", font=self.FONTS['sm_bold'], fill=self.COLOURS['grey_light'])
+            w_away = len(str(game['away_score'])) * 5
+            x_away = max(0, 9 - w_away)
+            self.draw['centre'].text((x_away, 18), str(game['away_score']), font=self.FONTS['sm_bold'], fill=colour_away)
+            self.draw['centre'].text((11, 18), str(game['home_score']), font=self.FONTS['sm_bold'], fill=colour_home)
+
+        # 3-digit scores (e.g. NBA high scoring): compact 3x5 side-by-side or clean aligned display
         else:
-            # Determine the larger score. Use to determine vertical placement, putting the higher score higher up.
-            if game['away_score'] >= game['home_score']:
-                away_team_row_start = 17
-                home_team_row_start = 23
-            else:
-                away_team_row_start = 23
-                home_team_row_start = 17
-
-            # Add away score to centre image.
-            away_score_col_start = -1 if str(game['away_score'])[0] == '1' else 0
-            self.draw['centre'].text((away_score_col_start, away_team_row_start), str(game['away_score']), font=self.FONTS['sm'], fill=colour_away)
-
-            # Dynamically determin placement of home team score based on number of digits. Add to centre image.
-            home_score_col_start = 20 - (5 * home_score_digits - 1)
-            self.draw['centre'].text((home_score_col_start, home_team_row_start), str(game['home_score']), font=self.FONTS['sm'], fill=colour_home)
+            from utils.font_utils import draw_text_3x5, get_text_3x5_width
+            str_away = str(game['away_score'])
+            str_home = str(game['home_score'])
+            w_a = get_text_3x5_width(str_away)
+            w_h = get_text_3x5_width(str_home)
+            draw_text_3x5(self.draw['centre'], max(0, 9 - w_a), 20, str_away, colour_away)
+            self.draw['centre'].point((9, 22), fill=self.COLOURS['grey_light'])
+            self.draw['centre'].point((10, 22), fill=self.COLOURS['grey_light'])
+            draw_text_3x5(self.draw['centre'], 12, 20, str_home, colour_home)
 
 
     def add_league_logo_to_image(self):

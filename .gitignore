@@ -133,3 +133,7 @@ dmypy.json
 
 # RGBMatrixEmulator configuration file
 emulator_config.json
+# Odds cache and debug files
+*_odds_cache.json
+*.png
+*_debug.txt

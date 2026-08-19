@@ -52,19 +52,29 @@ def get_games(date, league_abrv):
 
         # First, hit the todayScoreboard endpoint to see what date it is returning.
         url = f'https://cdn.nba.com/static/json/liveData/scoreboard/todaysScoreboard_{league_id}.json'
-        games_response = session.get(url=url, headers=cdn_headers)
-        games_response_date = dt.strptime(games_response.json()['scoreboard']['gameDate'], '%Y-%m-%d').date()
+        games_json = []
+        try:
+            games_response = session.get(url=url, headers=cdn_headers, timeout=5)
+            if games_response.status_code == 200:
+                resp_json = games_response.json()
+                if 'scoreboard' in resp_json and 'gameDate' in resp_json['scoreboard']:
+                    games_response_date = dt.strptime(resp_json['scoreboard']['gameDate'], '%Y-%m-%d').date()
+                    if games_response_date == date:
+                        games_json = resp_json['scoreboard'].get('games', [])
+        except Exception:
+            pass
 
-        # If the date returned by the live score endpoint matches the date requested, use these results.
-        if games_response_date == date:
-            games_json = games_response.json()['scoreboard']['games']
-
-        # Otherwise, hit the scoreboardv3 endpoint w/ the date param.
-        else:
-            # Call the NBA/WNBA game API for the date specified and store the JSON results.
-            url = f'https://stats.nba.com/stats/scoreboardv3?LeagueID={league_id}'
-            games_response = session.get(url=f"{url}&GameDate={date.strftime(format='%Y-%m-%d')}", headers=stats_headers)
-            games_json = games_response.json()['scoreboard']['games']
+        # Otherwise, hit the scoreboardv3 endpoint w/ the date param if no live games on todaysScoreboard
+        if not games_json:
+            try:
+                url = f'https://stats.nba.com/stats/scoreboardv3?LeagueID={league_id}'
+                games_response = session.get(url=f"{url}&GameDate={date.strftime(format='%Y-%m-%d')}", headers=stats_headers, timeout=5)
+                if games_response.status_code == 200:
+                    resp_json = games_response.json()
+                    if 'scoreboard' in resp_json and 'games' in resp_json['scoreboard']:
+                        games_json = resp_json['scoreboard']['games']
+            except Exception:
+                pass
 
         # For each game, build a dict recording current game details.
         if games_json: # If games today.
@@ -132,26 +142,30 @@ def get_next_game(team, league_abrv):
     cur_date = cur_datetime.date()
     upcoming_days_games = [day_games for day_games in schedule_json if dt.strptime(day_games['gameDate'], '%m/%d/%Y %H:%M:%S').date() >= cur_date]
     
-    # Determine the next game for the team specified and return game details.
+    # Determine the next game for the team specified (looking ahead across full schedule)
     for day_game in upcoming_days_games:
         for game in day_game['games']:
-            if game['gameLabel'] != 'Preseason': # This should leave regular season and playoff games.
-                if game['homeTeam']['teamTricode'] == team or game['awayTeam']['teamTricode'] == team:
-                    # Put together a dictionary with needed details.
-                    next_game = {
-                        'home_or_away': 'away' if game['homeTeam']['teamTricode'] != team else 'home',
-                        'opponent_abrv': game['homeTeam']['teamTricode'] if game['homeTeam']['teamTricode'] != team else game['awayTeam']['teamTricode'],
-                        'start_datetime_utc': dt.strptime(game['gameDateTimeUTC'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=tz.utc),
-                        'start_datetime_local': dt.strptime(game['gameDateTimeUTC'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=tz.utc).astimezone(tz=None),
-                        'is_today': True if dt.strptime(game['gameDateTimeUTC'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=tz.utc).astimezone(tz=None).date() == cur_date or dt.strptime(game['gameDateTimeUTC'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=tz.utc).astimezone(tz=None) < cur_datetime else False, # TODO: clean this up. Needed in case game is still going when date rolls over.
-                        'has_started': True if cur_datetime >= dt.strptime(game['gameDateTimeUTC'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=tz.utc).astimezone(tz=None) else False
-                    }
+            if game['homeTeam']['teamTricode'] == team or game['awayTeam']['teamTricode'] == team:
+                start_datetime_utc = dt.strptime(game['gameDateTimeUTC'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=tz.utc)
+                start_datetime_local = start_datetime_utc.astimezone(tz=None)
+                is_today = (start_datetime_local.date() == cur_date or start_datetime_local < cur_datetime)
+                has_started = (cur_datetime >= start_datetime_local)
+                
+                next_game = {
+                    'home_or_away': 'away' if game['homeTeam']['teamTricode'] != team else 'home',
+                    'opponent_abrv': game['homeTeam']['teamTricode'] if game['homeTeam']['teamTricode'] != team else game['awayTeam']['teamTricode'],
+                    'start_datetime_utc': start_datetime_utc,
+                    'start_datetime_local': start_datetime_local,
+                    'is_today': is_today,
+                    'has_started': has_started,
+                    'game_label': game.get('gameLabel', '')
+                }
 
-                    # Skip to next game if this one has started more than 3 hours ago (longer than an avg game). Schedule API doesn't update in real-time w/ game status.
-                    if next_game['has_started'] and (cur_datetime - next_game['start_datetime_local']).total_seconds() > 10800:
-                        continue
+                # Skip to next game if this one has started more than 3 hours ago
+                if next_game['has_started'] and (cur_datetime - next_game['start_datetime_local']).total_seconds() > 10800:
+                    continue
 
-                    return(next_game)
+                return next_game
     
     # Fallback: Find the last completed game of the season for this team
     past_days_games = [day_games for day_games in schedule_json if dt.strptime(day_games['gameDate'], '%m/%d/%Y %H:%M:%S').date() < cur_date]
@@ -175,11 +189,11 @@ def get_next_game(team, league_abrv):
                         'is_today': False,
                         'has_started': True,
                         'is_completed': True,
+                        'is_offseason': True,
                         'is_win': is_win,
                         'score_str': f"{fav_score}-{opp_score}"
                     }
 
-    # If no next game found, return None.
     return None
 
 

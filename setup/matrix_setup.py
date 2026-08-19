@@ -2,7 +2,29 @@ from utils import data_utils
 try:
     from rgbmatrix import RGBMatrix, RGBMatrixOptions
 except ImportError:
-    from RGBMatrixEmulator import RGBMatrix, RGBMatrixOptions
+    try:
+        from RGBMatrixEmulator import RGBMatrix, RGBMatrixOptions
+    except ImportError:
+        class RGBMatrixOptions:
+            def __init__(self):
+                self.rows = 32
+                self.cols = 64
+                self.chain_length = 1
+                self.parallel = 1
+                self.drop_privileges = False
+                self.gpio_slowdown = 4
+                self.hardware_mapping = 'regular'
+                self.led_rgb_sequence = 'RGB'
+                self.brightness = 100
+
+        class RGBMatrix:
+            def __init__(self, options=None):
+                self.options = options or RGBMatrixOptions()
+                self.brightness = 100
+            def SetImage(self, image, offset_x=0, offset_y=0):
+                pass
+            def Clear(self):
+                pass
 from datetime import datetime as dt
 import math
 

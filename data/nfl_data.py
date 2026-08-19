@@ -4,8 +4,8 @@ from datetime import timezone as tz
 
 # Headers for ESPN API
 espn_headers = {
-    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-    'accept': 'application/json, text/plain, */*',
+    'User-Agent': 'ESPN/4.0 (Linux; Android 14)',
+    'Accept': 'application/json, text/plain, */*',
 }
 
 TEAM_TO_DIVISION = {
@@ -51,13 +51,13 @@ def get_games(date):
         url = f'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates={date_str}'
         try:
             response = session.get(url, headers=espn_headers, timeout=10)
-            data_json = response.json()
+            data_json = response.json() if response.status_code == 200 else {}
 
             # Fallback to the active week of games if no events are scheduled for this specific date
             if not data_json.get('events'):
                 fallback_url = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard'
                 response = session.get(fallback_url, headers=espn_headers, timeout=10)
-                data_json = response.json()
+                data_json = response.json() if response.status_code == 200 else {}
             
             if 'events' in data_json:
                 for event in data_json['events']:

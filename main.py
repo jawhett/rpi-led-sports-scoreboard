@@ -9,6 +9,7 @@ from scenes.standings_scenes.standings_scene_pwhl import PWHLStandingsScene
 from scenes.game_scenes.games_scene_nba_wnba import NBAWNBAGamesScene
 from scenes.fav_team_next_game_scenes.fav_team_next_game_scene_nba_wnba import NBAWNBAFavTeamNextGameScene
 from scenes.standings_scenes.standings_scene_nba_wnba import NBAWNBAStandingsScene
+from scenes.game_scenes.suns_countdown_scene import SunsCountdownScene
 
 from scenes.game_scenes.games_scene_mlb import MLBGamesScene
 from scenes.fav_team_next_game_scenes.fav_team_next_game_scene_mlb import MLBFavTeamNextGameScene
@@ -47,7 +48,8 @@ def normalize_abrv(abrv):
 
 def inject_espn_odds(games, sport, league):
     try:
-        cache_file = f"/home/nba/rpi-led-sports-scoreboard/{league}_odds_cache.json"
+        league_key = league.lower()
+        cache_file = f"/home/nba/rpi-led-sports-scoreboard/{league_key}_odds_cache.json"
         
         cached_odds = {}
         if os.path.exists(cache_file):
@@ -58,8 +60,9 @@ def inject_espn_odds(games, sport, league):
                 pass
                 
         url = f"https://site.api.espn.com/apis/site/v2/sports/{sport}/{league}/scoreboard"
-        resp = requests.get(url, timeout=5)
-        data = resp.json()
+        headers = {"User-Agent": "ESPN/4.0 (Linux; Android 14)", "Accept": "application/json, text/plain, */*"}
+        resp = requests.get(url, headers=headers, timeout=5)
+        data = resp.json() if resp.status_code == 200 else {}
         
         espn_odds = {}
         for event in data.get('events', []):
@@ -97,7 +100,9 @@ def inject_espn_odds(games, sport, league):
             
             odds = None
             for key, eo in all_odds.items():
-                ea_raw, eh_raw = key.split('@')
+                if '@' not in key:
+                    continue
+                ea_raw, eh_raw = key.split('@', 1)
                 ea = normalize_abrv(ea_raw)
                 eh = normalize_abrv(eh_raw)
                 if (ea in away or away in ea) and (eh in home or home in eh):
@@ -194,6 +199,7 @@ def run_scoreboard():
 
         'nba_games':                NBAWNBAGamesScene('NBA'),
         'nba_fav_team_next_game':   NBAWNBAFavTeamNextGameScene('NBA'),
+        'suns_countdown':           SunsCountdownScene(),
         'nba_standings':            NBAWNBAStandingsScene('NBA'),
 
         'wnba_games':               NBAWNBAGamesScene('WNBA'),
@@ -304,21 +310,17 @@ def run_scoreboard():
                 has_live_games = True
 
         if has_live_games:
-            live_pause = display_behavior.get('live_loop_pause_seconds', 0)
+            live_pause = display_behavior.get('live_loop_pause_seconds', 1)
             if live_pause > 0:
-                print(f"[PRIORITY] End of live cycle. Pausing for {live_pause} seconds.")
                 time.sleep(live_pause)
-            continue
 
-
-        print("[PRIORITY] No live/recent games active. Running normal cycle.")
+        # Always run Suns Countdown and configured scene_order rotation
         for scene in scene_order:
-            scene_mapping[scene].display_scene()
+            if scene in scene_mapping:
+                scene_mapping[scene].display_scene()
 
-        idle_pause = display_behavior.get('idle_loop_pause_seconds', 0)
+        idle_pause = display_behavior.get('idle_loop_pause_seconds', 1)
         if idle_pause > 0:
-            print(f"[PRIORITY] End of normal cycle. Pausing for {idle_pause} seconds.")
-            matrix.Clear()
             time.sleep(idle_pause)
 
 

@@ -8,8 +8,8 @@ import concurrent.futures
 
 
 espn_headers = {
-    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-    'accept': 'application/json, text/plain, */*',
+    'User-Agent': 'ESPN/4.0 (Linux; Android 14)',
+    'Accept': 'application/json, text/plain, */*',
 }
 
 def get_games(date):

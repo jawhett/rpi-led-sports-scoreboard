@@ -270,33 +270,48 @@ class NBAWNBAGamesScene(GamesScene):
         """
         image_utils.clear_image(self.images['full'], self.draw['full'])
         
-        # 1. Draw Away Team Logo (reduced to 12x9 to prevent overlap with status)
+        image_utils.clear_image(self.images['full'], self.draw['full'])
+        
+        # 1. TOP 5 PIXELS (rows 0..4, cols 0..63): LIVE TICKER / INFO BANNER
+        banner_text = ""
+        banner_color = self.COLOURS['white']
+
+        if alert_text_override:
+            banner_text = alert_text_override
+            banner_color = self.COLOURS['yellow_bright']
+        elif game.get('away_fouls') is not None or game.get('home_fouls') is not None:
+            banner_text = f"FOULS {game.get('away_fouls', 0)}-{game.get('home_fouls', 0)}"
+            banner_color = self.COLOURS['red_bright'] if (game.get('away_fouls', 0) >= 5 or game.get('home_fouls', 0) >= 5) else self.COLOURS['yellow_bright']
+
+        if not banner_text:
+            banner_text = f"{self.LEAGUE} LIVE"
+
+        w_banner = get_text_3x5_width(banner_text)
+        x_banner = 32 - w_banner // 2
+        draw_text_3x5(self.draw['full'], max(0, min(x_banner, 64 - w_banner)), 0, banner_text, banner_color)
+
+        # 2. ROWS 5..26: TEAM LOGOS (22x22) & CENTER INFO
         away_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["away_abrv"]}.png' if game["away_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["away_abrv"]}_{self.alt_logos[game["away_abrv"]]}.png'
         if os.path.exists(away_logo_path):
             try:
                 away_logo = Image.open(away_logo_path)
                 away_logo = image_utils.crop_image(away_logo)
-                away_logo.thumbnail((24, 16))
-                x = 1  # Leave 1px padding from the outer edge (where ticks are drawn)
-                y = 0
-                self.images['full'].paste(away_logo, (x, max(0, y)))
+                away_logo.thumbnail((22, 22))
+                self.images['full'].paste(away_logo, (0, 5))
             except Exception as e:
                 print(f"Error loading logo {away_logo_path}: {e}")
 
-        # 2. Draw Home Team Logo (reduced to 12x9 to prevent overlap with status)
         home_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["home_abrv"]}.png' if game["home_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["home_abrv"]}_{self.alt_logos[game["home_abrv"]]}.png'
         if os.path.exists(home_logo_path):
             try:
                 home_logo = Image.open(home_logo_path)
                 home_logo = image_utils.crop_image(home_logo)
-                home_logo.thumbnail((24, 16))
-                x = 63 - home_logo.width  # Leave 1px padding from outer edge
-                y = 0
-                self.images['full'].paste(home_logo, (x, max(0, y)))
+                home_logo.thumbnail((22, 22))
+                self.images['full'].paste(home_logo, (42, 5))
             except Exception as e:
                 print(f"Error loading logo {home_logo_path}: {e}")
- 
-        # 3. Draw Clock (top center, yellow - y=1)
+
+        # Center Info (cols 22..41, rows 5..26): Period & Clock
         clock_str = ""
         period_str = ""
         if game['is_halftime']:
@@ -309,106 +324,54 @@ class NBAWNBAGamesScene(GamesScene):
         else:
             clock_str = game['period_time_remaining'] if game['period_time_remaining'] else ""
 
-        if game['period_num'] == 1:
-            period_str = "1ST"
-        elif game['period_num'] == 2:
-            period_str = "2ND"
-        elif game['period_num'] == 3:
-            period_str = "3RD"
-        elif game['period_num'] == 4:
-            period_str = "4TH"
-        elif game['period_num'] == 5:
-            period_str = "OT"
-        elif game['period_num'] > 5:
-            period_str = f"{game['period_num'] - 4}OT"
+        if game['period_num'] == 1: period_str = "1ST"
+        elif game['period_num'] == 2: period_str = "2ND"
+        elif game['period_num'] == 3: period_str = "3RD"
+        elif game['period_num'] == 4: period_str = "4TH"
+        elif game['period_num'] == 5: period_str = "OT"
+        elif game['period_num'] > 5: period_str = f"{game['period_num'] - 4}OT"
 
+        if period_str:
+            w_p = get_text_3x5_width(period_str)
+            draw_text_3x5(self.draw['full'], 32 - w_p // 2, 7, period_str, self.COLOURS['yellow'])
         if clock_str:
-            status_text = f"{period_str} {clock_str}" if period_str else clock_str
-            w = get_text_3x5_width(status_text)
-            x = 32 - w // 2
-            draw_text_3x5(self.draw['full'], x, 1, status_text, self.COLOURS['yellow'])
+            w_c = get_text_3x5_width(clock_str)
+            draw_text_3x5(self.draw['full'], 32 - w_c // 2, 14, clock_str, self.COLOURS['white'])
 
-            # Draw clean possession indicator dots right next to status channel
-            if self.LEAGUE == 'NFL' and game.get('possession'):
-                poss_color = self.COLOURS['red_bright'] if game.get('is_red_zone') else self.COLOURS['yellow_bright']
-                if game['possession'] == 'away':
-                    self.draw['full'].rectangle([(x - 4, 4), (x - 3, 5)], fill=poss_color)
-                elif game['possession'] == 'home':
-                    self.draw['full'].rectangle([(x + w + 2, 4), (x + w + 3, 5)], fill=poss_color)
+        # 3. BOTTOM 5 PIXELS (rows 27..31, cols 0..63): CENTER SCORE & CORNER INDICATORS
+        away_score_str = str(game['away_score'])
+        home_score_str = str(game['home_score'])
 
-        # 4. Draw Timeouts & Bonus Indicators (row 10)
-        if self.LEAGUE == 'NFL':
-            for i in range(3):
-                color = self.COLOURS['yellow_bright'] if i < game.get('away_timeouts', 0) else self.COLOURS['grey_dark']
-                self.draw['full'].point((1 + i * 3, 10), fill=color)
-                self.draw['full'].point((2 + i * 3, 10), fill=color)
-            for i in range(3):
-                color = self.COLOURS['yellow_bright'] if i < game.get('home_timeouts', 0) else self.COLOURS['grey_dark']
-                self.draw['full'].point((53 + i * 3, 10), fill=color)
-                self.draw['full'].point((54 + i * 3, 10), fill=color)
-        else:  # NBA/WNBA
-            for i in range(7):
-                color = self.COLOURS['yellow_bright'] if i < game.get('away_timeouts', 0) else self.COLOURS['grey_dark']
-                self.draw['full'].point((0 + i * 2, 10), fill=color)
-            for i in range(7):
-                color = self.COLOURS['yellow_bright'] if i < game.get('home_timeouts', 0) else self.COLOURS['grey_dark']
-                self.draw['full'].point((50 + i * 2, 10), fill=color)
-            
-            # NBA Bonus indicators next to timeouts on row 11
-            if game.get('away_fouls', 0) >= 5:
-                self.draw['full'].rectangle([(15, 10), (17, 10)], fill=self.COLOURS['red_bright'])
-            if game.get('home_fouls', 0) >= 5:
-                self.draw['full'].rectangle([(46, 10), (48, 10)], fill=self.COLOURS['red_bright'])
-
-        # 5. Draw Scores (row 11..30) - using FONTS['giant_bold'] (10x20)
-        away_score = game['away_score']
-        w = len(str(away_score)) * 8
-        x = 12 - w // 2
-        color_away = self.COLOURS['white']
+        color_away = data_utils.TEAM_COLORS.get(game['away_abrv'], self.COLOURS['white'])
         if score_fade_color and game.get('scoring_team') in ['away', 'both']:
             color_away = score_fade_color
         elif self.settings['score_alerting']['score_coloured'] and game.get('away_team_scored'):
             color_away = self.COLOURS['red_bright']
-        self.draw['full'].text((x, 16), str(away_score), font=self.FONTS['lrg_bold'], fill=color_away)
 
-        home_score = game['home_score']
-        w = len(str(home_score)) * 8
-        x = 52 - w // 2
-        color_home = self.COLOURS['white']
+        color_home = data_utils.TEAM_COLORS.get(game['home_abrv'], self.COLOURS['white'])
         if score_fade_color and game.get('scoring_team') in ['home', 'both']:
             color_home = score_fade_color
         elif self.settings['score_alerting']['score_coloured'] and game.get('home_team_scored'):
             color_home = self.COLOURS['red_bright']
-        self.draw['full'].text((x, 16), str(home_score), font=self.FONTS['lrg_bold'], fill=color_home)
 
-        # 6. Padded Bottom Banner (row 27..31) for secondary info
-        banner_text = ""
-        banner_color = self.COLOURS['white']
+        w_away = get_text_3x5_width(away_score_str)
+        w_home = get_text_3x5_width(home_score_str)
 
-        if alert_text_override:
-            banner_text = alert_text_override
-            banner_color = self.COLOURS['yellow_bright']
-        elif self.LEAGUE == 'NFL' and game.get('down_distance_text'):
-            banner_text = compact_down_distance(game['down_distance_text'])
-            banner_color = self.COLOURS['white']
-        elif self.LEAGUE in ('NBA', 'WNBA') and (game.get('away_fouls') is not None or game.get('home_fouls') is not None):
-            banner_text = f"FOULS {game.get('away_fouls', 0)}-{game.get('home_fouls', 0)}"
-            if game.get('away_fouls', 0) >= 5 or game.get('home_fouls', 0) >= 5:
-                banner_color = self.COLOURS['red_bright']
-            else:
-                banner_color = self.COLOURS['yellow_bright']
+        x_away = 26 - w_away // 2
+        x_dash = 31
+        x_home = 36 - w_home // 2
 
-        if not alert_text_override and rotation_mode == 2 and self.LEAGUE == 'NFL' and game.get('home_win_pct') is not None:
-            pct = game['home_win_pct']
-            fav_abrv = game['home_abrv'] if pct >= 50 else game['away_abrv']
-            fav_pct = int(pct if pct >= 50 else (100 - pct))
-            banner_text = f"{fav_abrv} WIN PROB {fav_pct}%"
-            banner_color = self.COLOURS['green_bright']
+        draw_text_3x5(self.draw['full'], x_away, 27, away_score_str, color_away)
+        draw_text_3x5(self.draw['full'], x_dash, 27, "-", self.COLOURS['grey_light'])
+        draw_text_3x5(self.draw['full'], x_home, 27, home_score_str, color_home)
 
-        if banner_text:
-            w = get_text_3x5_width(banner_text)
-            x = 32 - w // 2
-            draw_text_3x5(self.draw['full'], x, 27, banner_text, banner_color)
+        # Away Corner Indicator (cols 0..17, rows 27..31)
+        for i in range(min(3, game.get('away_timeouts', 0))):
+            self.draw['full'].rectangle([(1 + i * 4, 28), (3 + i * 4, 30)], fill=self.COLOURS['yellow_bright'])
+
+        # Home Corner Indicator (cols 46..63, rows 27..31)
+        for i in range(min(3, game.get('home_timeouts', 0))):
+            self.draw['full'].rectangle([(51 + i * 4, 28), (53 + i * 4, 30)], fill=self.COLOURS['yellow_bright'])
 
 
 
