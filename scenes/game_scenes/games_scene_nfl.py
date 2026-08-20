@@ -228,8 +228,32 @@ class NFLGamesScene(GamesScene):
                 odds_str = f"{odds_str} U{parsed_odds['ou']}"
             return odds_str, self.COLOURS['yellow_bright']
         else:
-            time_str = f"{game['date_str']} {game['time_str']}"
-            return time_str, self.COLOURS['white']
+            from datetime import datetime as dt
+            if 'start_datetime_local' in game and game['start_datetime_local']:
+                game_date = game['start_datetime_local'].date()
+                today = dt.now().astimezone().date()
+                if game_date == today:
+                    date_str = "TODAY"
+                elif (game_date - today).days == 1:
+                    date_str = "TOMORROW"
+                else:
+                    date_str = game['start_datetime_local'].strftime('%b %d').upper()
+                    if " 0" in date_str:
+                        date_str = date_str.replace(" 0", " ")
+
+                time_str = game['start_datetime_local'].time().strftime('%I:%M %p')
+                if time_str.startswith('0'):
+                    time_str = time_str[1:]
+
+                banner_text = f"{date_str} {time_str}"
+                return banner_text, self.COLOURS['white']
+            else:
+                date_str = game.get('date_str', '')
+                time_str = game.get('time_str', '')
+                banner_text = f"{date_str} {time_str}".strip()
+                if not banner_text:
+                    banner_text = "NFL UPCOMING"
+                return banner_text, self.COLOURS['white']
 
     def draw_complete_extras(self, game, rotation_mode):
         for i in range(3):
