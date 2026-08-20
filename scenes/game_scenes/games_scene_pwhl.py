@@ -228,84 +228,83 @@ class PWHLGamesScene(GamesScene):
         return ""
 
     def build_game_in_progress_image(self, game):
-        """ Builds a stadium-style scoreboard image for games in progress.
+        """ Builds a unified stadium-style scoreboard image for live PWHL games in progress.
         """
+        from utils.font_utils import get_text_3x5_width, draw_text_3x5
+
         image_utils.clear_image(self.images['full'], self.draw['full'])
 
-        # 1. Draw Away Team Logo
+        # 1. ROWS 0..21: TEAM LOGOS (22x22)
         away_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["away_abrv"]}.png' if game["away_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["away_abrv"]}_{self.alt_logos[game["away_abrv"]]}.png'
         if os.path.exists(away_logo_path):
             try:
                 away_logo = Image.open(away_logo_path)
                 away_logo = image_utils.crop_image(away_logo)
-                away_logo.thumbnail((24, 16))
-                x = 1
-                y = 0
-                self.images['full'].paste(away_logo, (x, y))
+                away_logo.thumbnail((22, 22))
+                self.images['full'].paste(away_logo, (0, 0))
             except Exception as e:
                 pass
 
-        # 2. Draw Home Team Logo
         home_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["home_abrv"]}.png' if game["home_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["home_abrv"]}_{self.alt_logos[game["home_abrv"]]}.png'
         if os.path.exists(home_logo_path):
             try:
                 home_logo = Image.open(home_logo_path)
                 home_logo = image_utils.crop_image(home_logo)
-                home_logo.thumbnail((24, 16))
-                x = 63 - home_logo.width
-                y = 0
-                self.images['full'].paste(home_logo, (x, y))
+                home_logo.thumbnail((22, 22))
+                self.images['full'].paste(home_logo, (42, 0))
             except Exception as e:
                 pass
 
-        # 3. Draw Clock (top center, yellow - y=0)
+        # Center Info (cols 22..41, rows 0..21): Period & Clock
         clock_str = ""
         if game.get('is_intermission'):
             clock_str = "INT"
         else:
             clock_str = game.get('period_time_remaining', '')
 
-        # Period string
         period_str = ""
-        if game.get('period_num') == 1:
-            period_str = "1ST"
-        elif game.get('period_num') == 2:
-            period_str = "2ND"
-        elif game.get('period_num') == 3:
-            period_str = "3RD"
-        elif game.get('period_type') == 'SO':
-            period_str = "SO"
-        elif game.get('period_type') == 'OT1':
-            period_str = "OT"
-        elif 'OT' in game.get('period_type', ''):
-            period_str = f"{game.get('period_num', 4) - 3}OT"
+        if game.get('period_num') == 1: period_str = "1ST"
+        elif game.get('period_num') == 2: period_str = "2ND"
+        elif game.get('period_num') == 3: period_str = "3RD"
+        elif game.get('period_type') == 'SO': period_str = "SO"
+        elif game.get('period_type') == 'OT1': period_str = "OT"
+        elif 'OT' in game.get('period_type', ''): period_str = f"{game.get('period_num', 4) - 3}OT"
 
-        status_text = f"{period_str} {clock_str}" if clock_str else period_str
-        w = get_text_3x5_width(status_text)
-        x = 32 - w // 2
-        draw_text_3x5(self.draw['full'], x, 0, status_text, self.COLOURS['yellow'])
+        if period_str:
+            w_p = get_text_3x5_width(period_str)
+            draw_text_3x5(self.draw['full'], 32 - w_p // 2, 1, period_str, self.COLOURS['yellow'])
+        if clock_str:
+            w_c = get_text_3x5_width(clock_str)
+            draw_text_3x5(self.draw['full'], 32 - w_c // 2, 7, clock_str, self.COLOURS['white'])
 
-        # Draw Scores
-        away_score = game['away_score']
-        home_score = game['home_score']
+        # 2. BOTTOM 10 PIXELS (rows 22..31, cols 0..63): ENLARGED SCORES
+        away_score = game.get('away_score', 0) if game.get('away_score') is not None else 0
+        home_score = game.get('home_score', 0) if game.get('home_score') is not None else 0
 
-        color_away = self.COLOURS['white']
-        color_home = self.COLOURS['white']
+        away_score_str = str(away_score)
+        home_score_str = str(home_score)
+
+        color_away = data_utils.TEAM_COLORS.get(game.get('away_abrv'), self.COLOURS['white'])
         if self.settings['score_alerting']['score_coloured'] and game.get('away_team_scored'):
             color_away = self.COLOURS['red_bright']
+
+        color_home = data_utils.TEAM_COLORS.get(game.get('home_abrv'), self.COLOURS['white'])
         if self.settings['score_alerting']['score_coloured'] and game.get('home_team_scored'):
             color_home = self.COLOURS['red_bright']
 
-        # Determine if we should offset scores down (same as NHL logic)
-        y_offset = 16
-        away_font = self.FONTS['lrg_bold']
-        home_font = self.FONTS['lrg_bold']
+        score_font = self.FONTS['sm_bold']
+        bbox_away = self.draw['full'].textbbox((0, 0), away_score_str, font=score_font)
+        w_away = bbox_away[2] - bbox_away[0]
+        bbox_home = self.draw['full'].textbbox((0, 0), home_score_str, font=score_font)
+        w_home = bbox_home[2] - bbox_home[0]
+        bbox_dash = self.draw['full'].textbbox((0, 0), "-", font=score_font)
+        w_dash = bbox_dash[2] - bbox_dash[0]
 
-        w = len(str(away_score)) * 8
-        x = 12 - w // 2
-        self.draw['full'].text((x, y_offset), str(away_score), font=away_font, fill=color_away)
+        x_dash = 32 - w_dash // 2
+        x_away = x_dash - 2 - w_away
+        x_home = x_dash + w_dash + 2
 
-        w = len(str(home_score)) * 8
-        x = 52 - w // 2
-        self.draw['full'].text((x, y_offset), str(home_score), font=home_font, fill=color_home)
+        self.draw['full'].text((x_away, 22), away_score_str, font=score_font, fill=color_away)
+        self.draw['full'].text((x_dash, 22), "-", font=score_font, fill=self.COLOURS['grey_light'])
+        self.draw['full'].text((x_home, 22), home_score_str, font=score_font, fill=color_home)
 
