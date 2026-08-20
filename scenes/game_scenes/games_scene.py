@@ -108,35 +108,23 @@ class GamesScene(Scene):
         """ Builds image for when the game has yet to start.
         """
         from utils import image_utils
+        """ Builds image for when the game has yet to start using unified stadium layout.
+        """
+        from utils import image_utils, data_utils
         from PIL import Image
         import os
         from utils.font_utils import get_text_3x5_width, draw_text_3x5
 
         image_utils.clear_image(self.images['full'], self.draw['full'])
 
-        # 1. TOP 5 PIXELS (rows 0..4, cols 0..63): LIVE TICKER / INFO BANNER
-        banner_text = ""
-        banner_color = self.COLOURS['yellow_bright']
-        if hasattr(self, 'get_not_started_banner_text'):
-            banner_text, banner_color = self.get_not_started_banner_text(game, rotation_mode)
-        else:
-            banner_text = game.get('odds_str', 'MATCHUP UPCOMING')
-
-        if not banner_text:
-            banner_text = f"{self.LEAGUE} UPCOMING"
-
-        w_banner = get_text_3x5_width(banner_text)
-        x_banner = 32 - w_banner // 2
-        draw_text_3x5(self.draw['full'], max(0, min(x_banner, 64 - w_banner)), 0, banner_text, banner_color)
-
-        # 2. ROWS 5..26: TEAM LOGOS (22x22) & CENTER INFO
+        # 1. ROWS 0..21: TEAM LOGOS (22x22)
         away_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["away_abrv"]}.png' if game["away_abrv"] not in getattr(self, 'alt_logos', {}) else f'assets/images/{self.LEAGUE}/teams_alt/{game["away_abrv"]}_{self.alt_logos[game["away_abrv"]]}.png'
         if os.path.exists(away_logo_path):
             try:
                 away_logo = Image.open(away_logo_path)
                 away_logo = image_utils.crop_image(away_logo)
                 away_logo.thumbnail((22, 22))
-                self.images['full'].paste(away_logo, (0, 5))
+                self.images['full'].paste(away_logo, (0, 0))
             except Exception:
                 pass
 
@@ -146,11 +134,11 @@ class GamesScene(Scene):
                 home_logo = Image.open(home_logo_path)
                 home_logo = image_utils.crop_image(home_logo)
                 home_logo.thumbnail((22, 22))
-                self.images['full'].paste(home_logo, (42, 5))
+                self.images['full'].paste(home_logo, (42, 0))
             except Exception:
                 pass
 
-        # Center Channel (cols 22..41, rows 5..26): Start Date & Time
+        # Center Channel (cols 22..41, rows 0..21): Start Date & Time & Odds
         from datetime import datetime as dt
         game_date = game['start_datetime_local'].date()
         today = dt.now().astimezone().date()
@@ -166,14 +154,27 @@ class GamesScene(Scene):
         if time_str.startswith('0'): time_str = time_str[1:]
 
         w_d = get_text_3x5_width(date_str)
-        draw_text_3x5(self.draw['full'], 32 - w_d // 2, 7, date_str, self.COLOURS['yellow_bright'])
+        draw_text_3x5(self.draw['full'], 32 - w_d // 2, 1, date_str, self.COLOURS['yellow_bright'])
         w_t = get_text_3x5_width(time_str)
-        draw_text_3x5(self.draw['full'], 32 - w_t // 2, 14, time_str, self.COLOURS['white'])
+        draw_text_3x5(self.draw['full'], 32 - w_t // 2, 7, time_str, self.COLOURS['white'])
 
-        # 3. BOTTOM 5 PIXELS (rows 27..31, cols 0..63): MATCHUP INDICATOR
+        banner_text = ""
+        banner_color = self.COLOURS['yellow_bright']
+        if hasattr(self, 'get_not_started_banner_text'):
+            banner_text, banner_color = self.get_not_started_banner_text(game, rotation_mode)
+        elif game.get('odds_str'):
+            banner_text = game['odds_str']
+
+        if banner_text:
+            w_b = get_text_3x5_width(banner_text)
+            draw_text_3x5(self.draw['full'], max(22, min(32 - w_b // 2, 41 - w_b)), 14, banner_text, banner_color)
+
+        # 2. BOTTOM 10 PIXELS (rows 22..31, cols 0..63): MATCHUP INDICATOR
         vs_str = "@" if game.get('home_or_away') == 'away' else "VS"
-        w_vs = get_text_3x5_width(vs_str)
-        draw_text_3x5(self.draw['full'], 32 - w_vs // 2, 27, vs_str, self.COLOURS['yellow'])
+        score_font = self.FONTS['sm_bold']
+        bbox_vs = self.draw['full'].textbbox((0, 0), vs_str, font=score_font)
+        w_vs = bbox_vs[2] - bbox_vs[0]
+        self.draw['full'].text((32 - w_vs // 2, 22), vs_str, font=score_font, fill=self.COLOURS['yellow'])
 
 
     def build_game_in_progress_image(self, game):
@@ -187,38 +188,23 @@ class GamesScene(Scene):
 
 
     def build_game_complete_image(self, game, rotation_mode=0):
-        """ Builds image for when the game is complete.
+        """ Builds image for when the game is complete using unified stadium layout.
         """
-        from utils import image_utils
+        from utils import image_utils, data_utils
         from PIL import Image
         import os
         from utils.font_utils import get_text_3x5_width, draw_text_3x5
 
         image_utils.clear_image(self.images['full'], self.draw['full'])
 
-        # 1. TOP 5 PIXELS (rows 0..4, cols 0..63): LIVE TICKER / INFO BANNER
-        banner_text = ""
-        banner_color = self.COLOURS['yellow_bright']
-        if game.get('odds_str'):
-            banner_text = game['odds_str']
-        elif game.get('recap_text'):
-            banner_text = game['recap_text']
-
-        if not banner_text:
-            banner_text = f"{game['away_abrv']} VS {game['home_abrv']}"
-
-        w_banner = get_text_3x5_width(banner_text)
-        x_banner = 32 - w_banner // 2
-        draw_text_3x5(self.draw['full'], max(0, min(x_banner, 64 - w_banner)), 0, banner_text, banner_color)
-
-        # 2. ROWS 5..26: TEAM LOGOS (22x22) & CENTER INFO
+        # 1. ROWS 0..21: TEAM LOGOS (22x22)
         away_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["away_abrv"]}.png' if game["away_abrv"] not in getattr(self, 'alt_logos', {}) else f'assets/images/{self.LEAGUE}/teams_alt/{game["away_abrv"]}_{self.alt_logos[game["away_abrv"]]}.png'
         if os.path.exists(away_logo_path):
             try:
                 away_logo = Image.open(away_logo_path)
                 away_logo = image_utils.crop_image(away_logo)
                 away_logo.thumbnail((22, 22))
-                self.images['full'].paste(away_logo, (0, 5))
+                self.images['full'].paste(away_logo, (0, 0))
             except Exception:
                 pass
 
@@ -228,11 +214,11 @@ class GamesScene(Scene):
                 home_logo = Image.open(home_logo_path)
                 home_logo = image_utils.crop_image(home_logo)
                 home_logo.thumbnail((22, 22))
-                self.images['full'].paste(home_logo, (42, 5))
+                self.images['full'].paste(home_logo, (42, 0))
             except Exception:
                 pass
 
-        # Center Status (cols 22..41, rows 5..26): FINAL or F/OT
+        # Center Status (cols 22..41, rows 0..21): FINAL or F/OT
         status_text = "FINAL"
         if hasattr(self, 'get_final_status_text'):
             status_text = self.get_final_status_text(game, rotation_mode)
@@ -242,27 +228,38 @@ class GamesScene(Scene):
                 status_text = f"F/{period_str}"
 
         w_s = get_text_3x5_width(status_text)
-        draw_text_3x5(self.draw['full'], 32 - w_s // 2, 10, status_text, self.COLOURS['red_bright'])
+        draw_text_3x5(self.draw['full'], 32 - w_s // 2, 8, status_text, self.COLOURS['red_bright'])
 
-        # 3. BOTTOM 5 PIXELS (rows 27..31, cols 0..63): CENTER SCORES
+        # 2. BOTTOM 10 PIXELS (rows 22..31, cols 0..63): ENLARGED FINAL SCORES
         away_score = game['away_score'] if game.get('away_score') is not None else 0
         home_score = game['home_score'] if game.get('home_score') is not None else 0
-        color_away = self.COLOURS['white'] if away_score >= home_score else self.COLOURS['grey_dark']
-        color_home = self.COLOURS['white'] if home_score >= away_score else self.COLOURS['grey_dark']
+
+        color_away = data_utils.TEAM_COLORS.get(game.get('away_abrv'), self.COLOURS['white'])
+        color_home = data_utils.TEAM_COLORS.get(game.get('home_abrv'), self.COLOURS['white'])
+
+        if away_score < home_score:
+            color_away = (color_away[0] // 2, color_away[1] // 2, color_away[2] // 2)
+        elif home_score < away_score:
+            color_home = (color_home[0] // 2, color_home[1] // 2, color_home[2] // 2)
 
         away_score_str = str(away_score)
         home_score_str = str(home_score)
 
-        w_away = get_text_3x5_width(away_score_str)
-        w_home = get_text_3x5_width(home_score_str)
+        score_font = self.FONTS['sm_bold']
+        bbox_away = self.draw['full'].textbbox((0, 0), away_score_str, font=score_font)
+        w_away = bbox_away[2] - bbox_away[0]
+        bbox_home = self.draw['full'].textbbox((0, 0), home_score_str, font=score_font)
+        w_home = bbox_home[2] - bbox_home[0]
+        bbox_dash = self.draw['full'].textbbox((0, 0), "-", font=score_font)
+        w_dash = bbox_dash[2] - bbox_dash[0]
 
-        x_away = 26 - w_away // 2
-        x_dash = 31
-        x_home = 36 - w_home // 2
+        x_dash = 32 - w_dash // 2
+        x_away = x_dash - 2 - w_away
+        x_home = x_dash + w_dash + 2
 
-        draw_text_3x5(self.draw['full'], x_away, 27, away_score_str, color_away)
-        draw_text_3x5(self.draw['full'], x_dash, 27, "-", self.COLOURS['grey_light'])
-        draw_text_3x5(self.draw['full'], x_home, 27, home_score_str, color_home)
+        self.draw['full'].text((x_away, 22), away_score_str, font=score_font, fill=color_away)
+        self.draw['full'].text((x_dash, 22), "-", font=score_font, fill=self.COLOURS['grey_light'])
+        self.draw['full'].text((x_home, 22), home_score_str, font=score_font, fill=color_home)
 
         if hasattr(self, 'draw_complete_extras'):
             self.draw_complete_extras(game, rotation_mode)

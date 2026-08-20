@@ -292,21 +292,53 @@ def get_standings(league_abrv):
         season = determine_current_season(league_abrv)
         league_id = determine_league_id(league_abrv)
     
-        # Call the NBA/WNBA standings API and store the JSON results.
-        url = f'https://stats.nba.com/stats/leaguestandingsv3?LeagueID={league_id}&SeasonType=Regular Season'
-        standings_response = session.get(url=f'{url}&Season={season}', headers=stats_headers)
-        standings_json_unprocessed = standings_response.json()['resultSets'][0]
-
-        # Process the returned JSON into a more usable format.
         standings_json = []
-        for team in standings_json_unprocessed['rowSet']:
-            team_values = {}
-            for header, value in zip(standings_json_unprocessed['headers'], team):
-                team_values[header] = value
-        
-            # Add the team abbreviation to the dict based on the dict defined above.
-            team_values['teamTricode'] = determine_team_abbreviation(team_values['TeamID'], league_abrv)
-            standings_json.append(team_values)
+        try:
+            url = f'https://stats.nba.com/stats/leaguestandingsv3?LeagueID={league_id}&SeasonType=Regular Season'
+            standings_response = session.get(url=f'{url}&Season={season}', headers=stats_headers, timeout=5)
+            if standings_response.status_code == 200:
+                standings_json_unprocessed = standings_response.json()['resultSets'][0]
+                for team in standings_json_unprocessed['rowSet']:
+                    team_values = {}
+                    for header, value in zip(standings_json_unprocessed['headers'], team):
+                        team_values[header] = value
+                    team_values['teamTricode'] = determine_team_abbreviation(team_values['TeamID'], league_abrv)
+                    standings_json.append(team_values)
+        except Exception:
+            pass
+
+        # Fallback to ESPN Standings if NBA stats API was blocked
+        if not standings_json:
+            try:
+                espn_league = 'nba' if league_abrv.upper() == 'NBA' else 'wnba'
+                espn_url = f'https://site.api.espn.com/apis/v2/sports/basketball/{espn_league}/standings'
+                resp = session.get(espn_url, timeout=5)
+                if resp.status_code == 200:
+                    espn_data = resp.json()
+                    for conf_obj in espn_data.get('children', []):
+                        conf_name = 'East' if 'East' in conf_obj.get('name', '') else 'West'
+                        for rank_idx, entry in enumerate(conf_obj.get('standings', {}).get('entries', []), 1):
+                            raw_abrv = entry['team']['abbreviation'].upper()
+                            map_dict = {'GS': 'GSW', 'NO': 'NOP', 'NY': 'NYK', 'SA': 'SAS', 'UTAH': 'UTA', 'WSH': 'WAS'} if league_abrv == 'NBA' else {'GS': 'GSV', 'WSH': 'WAS', 'NY': 'NYL', 'LA': 'LAS', 'LV': 'LVA', 'CONN': 'CON'}
+                            tricode = map_dict.get(raw_abrv, raw_abrv)
+                            win_pct = 0.0
+                            for stat in entry.get('stats', []):
+                                if stat.get('name') == 'winPercent':
+                                    win_pct = float(stat.get('value', 0.0))
+                            clinched = any(s.get('name') == 'clincher' for s in entry.get('stats', []))
+
+                            standings_json.append({
+                                'teamTricode': tricode,
+                                'Conference': conf_name,
+                                'Division': 'Central', # default
+                                'PlayoffRank': rank_idx,
+                                'DivisionRank': rank_idx,
+                                'WinPCT': win_pct,
+                                'ClinchedPostSeason': 1 if clinched else 0,
+                                'ClinchIndicator': ' - x' if clinched else ''
+                            })
+            except Exception as e:
+                print(f"ESPN Standings fallback error: {e}")
 
         # How the standings are structured depends on the league, so determine the structure based on the league and populate accordingly.
         if league_abrv == 'NBA':
