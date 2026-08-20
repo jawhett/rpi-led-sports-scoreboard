@@ -192,32 +192,18 @@ class MLBGamesScene(GamesScene):
         return ""
 
     def build_game_in_progress_image(self, game):
-        """ Builds a stadium-style scoreboard image for games in progress.
+        """ Builds a unified stadium-style scoreboard image for live MLB games in progress.
         """
         image_utils.clear_image(self.images['full'], self.draw['full'])
 
-        # 1. TOP 5 PIXELS (rows 0..4, cols 0..63): LIVE SCROLLING TICKER / INFO BANNER
-        outs_num = game.get('outs', 0)
-        runners = []
-        if game.get('runner_on_first'): runners.append("1ST")
-        if game.get('runner_on_second'): runners.append("2ND")
-        if game.get('runner_on_third'): runners.append("3RD")
-        bases_str = "LOADED" if len(runners) == 3 else (",".join(runners) if runners else "EMPTY")
-        banner_text = f"OUTS: {outs_num} BASES: {bases_str}"
-        banner_color = self.COLOURS['yellow_bright']
-
-        w_banner = get_text_3x5_width(banner_text)
-        x_banner = 32 - w_banner // 2
-        draw_text_3x5(self.draw['full'], max(0, min(x_banner, 64 - w_banner)), 0, banner_text, banner_color)
-
-        # 2. ROWS 5..26: TEAM LOGOS (22x22) & CENTER INFO
+        # 1. ROWS 0..21: TEAM LOGOS (22x22)
         away_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["away_abrv"]}.png' if game["away_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["away_abrv"]}_{self.alt_logos[game["away_abrv"]]}.png'
         if os.path.exists(away_logo_path):
             try:
                 away_logo = Image.open(away_logo_path)
                 away_logo = image_utils.crop_image(away_logo)
                 away_logo.thumbnail((22, 22))
-                self.images['full'].paste(away_logo, (0, 5))
+                self.images['full'].paste(away_logo, (0, 0))
             except Exception as e:
                 pass
 
@@ -227,34 +213,53 @@ class MLBGamesScene(GamesScene):
                 home_logo = Image.open(home_logo_path)
                 home_logo = image_utils.crop_image(home_logo)
                 home_logo.thumbnail((22, 22))
-                self.images['full'].paste(home_logo, (42, 5))
+                self.images['full'].paste(home_logo, (42, 0))
             except Exception as e:
                 pass
 
-        # Inning Indicator (center channel y=10)
+        # Center Channel (cols 22..41, rows 0..21): Inning & Outs & Bases
         self.add_playing_period_to_image(game)
 
-        # 3. BOTTOM 5 PIXELS (rows 27..31, cols 0..63): CENTER SCORE & CORNER INDICATORS
-        away_score_str = str(game['away_score'])
-        home_score_str = str(game['home_score'])
+        outs_num = game.get('outs', 0)
+        outs_text = f"O:{outs_num}"
+        w_o = get_text_3x5_width(outs_text)
+        draw_text_3x5(self.draw['full'], 32 - w_o // 2, 8, outs_text, self.COLOURS['white'])
 
-        color_away = data_utils.TEAM_COLORS.get(game['away_abrv'], self.COLOURS['white'])
-        color_home = data_utils.TEAM_COLORS.get(game['home_abrv'], self.COLOURS['white'])
+        runners = []
+        if game.get('runner_on_first'): runners.append("1")
+        if game.get('runner_on_second'): runners.append("2")
+        if game.get('runner_on_third'): runners.append("3")
+        bases_str = "LOD" if len(runners) == 3 else (",".join(runners) if runners else "EMP")
+        w_b = get_text_3x5_width(bases_str)
+        draw_text_3x5(self.draw['full'], 32 - w_b // 2, 14, bases_str, self.COLOURS['yellow_bright'])
+
+        # 2. BOTTOM 10 PIXELS (rows 22..31, cols 0..63): ENLARGED SCORES
+        away_score_str = str(game.get('away_score', 0))
+        home_score_str = str(game.get('home_score', 0))
+
+        color_away = data_utils.TEAM_COLORS.get(game.get('away_abrv'), self.COLOURS['white'])
         if self.settings['score_alerting']['score_coloured'] and game.get('away_team_scored'):
             color_away = self.COLOURS['red_bright']
+
+        color_home = data_utils.TEAM_COLORS.get(game.get('home_abrv'), self.COLOURS['white'])
         if self.settings['score_alerting']['score_coloured'] and game.get('home_team_scored'):
             color_home = self.COLOURS['red_bright']
 
-        w_away = get_text_3x5_width(away_score_str)
-        w_home = get_text_3x5_width(home_score_str)
+        score_font = self.FONTS['sm_bold']
+        bbox_away = self.draw['full'].textbbox((0, 0), away_score_str, font=score_font)
+        w_away = bbox_away[2] - bbox_away[0]
+        bbox_home = self.draw['full'].textbbox((0, 0), home_score_str, font=score_font)
+        w_home = bbox_home[2] - bbox_home[0]
+        bbox_dash = self.draw['full'].textbbox((0, 0), "-", font=score_font)
+        w_dash = bbox_dash[2] - bbox_dash[0]
 
-        x_away = 26 - w_away // 2
-        x_dash = 31
-        x_home = 36 - w_home // 2
+        x_dash = 32 - w_dash // 2
+        x_away = x_dash - 2 - w_away
+        x_home = x_dash + w_dash + 2
 
-        draw_text_3x5(self.draw['full'], x_away, 27, away_score_str, color_away)
-        draw_text_3x5(self.draw['full'], x_dash, 27, "-", self.COLOURS['grey_light'])
-        draw_text_3x5(self.draw['full'], x_home, 27, home_score_str, color_home)
+        self.draw['full'].text((x_away, 22), away_score_str, font=score_font, fill=color_away)
+        self.draw['full'].text((x_dash, 22), "-", font=score_font, fill=self.COLOURS['grey_light'])
+        self.draw['full'].text((x_home, 22), home_score_str, font=score_font, fill=color_home)
 
 
 
