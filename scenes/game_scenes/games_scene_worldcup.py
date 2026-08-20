@@ -45,10 +45,10 @@ class WorldCupGamesScene(GamesScene):
         if display_behavior.get('skip_empty_scenes', True):
             has_games_yesterday = False
             has_games_today = False
-            if display_yesterday and hasattr(self, 'data_previous_day'):
-                has_games_yesterday = len(self.filter_games(self.data_previous_day.get('games', []))) > 0
-            if hasattr(self, 'data') and self.data is not None:
-                has_games_today = len(self.filter_games(self.data.get('games', []) if self.data else [])) > 0
+            if display_yesterday and hasattr(self, 'data_previous_day') and self.data_previous_day:
+                has_games_yesterday = len(self.data_previous_day.get('games', [])) > 0
+            if hasattr(self, 'data') and self.data:
+                has_games_today = len(self.data.get('games', [])) > 0
 
             if not has_games_yesterday and not has_games_today:
                 return
@@ -85,6 +85,7 @@ class WorldCupGamesScene(GamesScene):
         # Display game image(s) for current day.
         self.display_game_images(self.data['games'], date=dates_to_display[-1])
 
+
     def display_splash_image(self, num_games, date):
         self.build_splash_image(num_games, date)
         self.transition_image(direction='in', image_already_combined=True)
@@ -92,7 +93,7 @@ class WorldCupGamesScene(GamesScene):
         self.transition_image(direction='out', image_already_combined=True)
 
     def display_game_images(self, games, date=None):
-        games = self.filter_games(games)
+        games = games if games else []
         if games:
             for game in games:
                 if game['status_code'] == 1:
