@@ -76,10 +76,93 @@ def get_games(date, league_abrv):
             except Exception:
                 pass
 
-        # For each game, build a dict recording current game details.
+        # If still no games from NBA endpoints, fallback to ESPN API
+        if not games_json:
+            try:
+                espn_league = 'nba' if league_abrv.upper() == 'NBA' else 'wnba'
+                espn_url = f"https://site.api.espn.com/apis/site/v2/sports/basketball/{espn_league}/scoreboard?dates={date.strftime('%Y%m%d')}"
+                espn_resp = session.get(url=espn_url, timeout=5)
+                if espn_resp.status_code == 200:
+                    espn_data = espn_resp.json()
+                    events = espn_data.get('events', [])
+                    for ev in events:
+                        comp = ev['competitions'][0]
+                        status_obj = ev['status']
+                        status_state = status_obj['type']['state']
+                        
+                        # Mapping state: pre -> 1, in -> 2, post -> 3
+                        status_code = 1 if status_state == 'pre' else (2 if status_state == 'in' else 3)
+                        
+                        try:
+                            start_utc = dt.strptime(ev['date'], '%Y-%m-%dT%H:%MZ').replace(tzinfo=tz.utc)
+                        except ValueError:
+                            start_utc = dt.strptime(ev['date'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=tz.utc)
+                        start_local = start_utc.astimezone(tz=None)
+
+                        home_team = next(t for t in comp['competitors'] if t['homeAway'] == 'home')
+                        away_team = next(t for t in comp['competitors'] if t['homeAway'] == 'away')
+
+                        home_raw = home_team['team']['abbreviation'].upper()
+                        away_raw = away_team['team']['abbreviation'].upper()
+
+                        if league_abrv.upper() == 'NBA':
+                            map_dict = {'GS': 'GSW', 'NO': 'NOP', 'NY': 'NYK', 'SA': 'SAS', 'UTAH': 'UTA', 'WSH': 'WAS'}
+                        else:
+                            map_dict = {'GS': 'GSV', 'WSH': 'WAS', 'NY': 'NYL', 'LA': 'LAS', 'LV': 'LVA', 'CONN': 'CON'}
+
+                        home_abrv = map_dict.get(home_raw, home_raw)
+                        away_abrv = map_dict.get(away_raw, away_raw)
+
+                        home_score = int(home_team['score']) if home_team.get('score') is not None else 0
+                        away_score = int(away_team['score']) if away_team.get('score') is not None else 0
+
+                        period_num = status_obj.get('period', 0)
+                        clock_str = status_obj.get('displayClock', '')
+                        is_halftime = (status_obj['type']['name'] == 'STATUS_HALFTIME')
+
+                        # Odds
+                        odds_str = None
+                        if comp.get('odds'):
+                            odds_str = comp['odds'][0].get('details')
+
+                        # Situation / Possession
+                        sit = comp.get('situation', {})
+                        poss_team = None
+                        if sit.get('possession'):
+                            poss_team = 'home' if str(sit['possession']) == str(home_team['id']) else 'away'
+
+                        games.append({
+                            'game_id': ev['id'],
+                            'home_abrv': home_abrv,
+                            'away_abrv': away_abrv,
+                            'home_score': home_score,
+                            'away_score': away_score,
+                            'start_datetime_utc': start_utc,
+                            'start_datetime_local': start_local,
+                            'status': status_obj['type']['detail'],
+                            'status_code': status_code,
+                            'has_started': True if status_code > 1 else False,
+                            'period_num': period_num,
+                            'period_type': 'OT' if period_num > 4 else 'Std',
+                            'period_time_remaining': clock_str,
+                            'is_halftime': is_halftime,
+                            'home_timeouts': home_team.get('timeoutsRemaining', 3),
+                            'away_timeouts': away_team.get('timeoutsRemaining', 3),
+                            'home_fouls': home_team.get('fouls'),
+                            'away_fouls': away_team.get('fouls'),
+                            'odds_str': odds_str,
+                            'possession': poss_team,
+                            'home_team_scored': False,
+                            'away_team_scored': False,
+                            'scoring_team': None
+                        })
+            except Exception as e:
+                print(f"ESPN fallback error: {e}")
+
+        # For each game from NBA JSON, build a dict recording current game details.
         if games_json: # If games today.
             for game in games_json:
-                if 'All-Star' not in game['gameLabel'] and 'Preseason' not in game['gameLabel'] and 'Rising Stars' not in game['gameLabel']: # This should leave regular season and playoff games.
+                if 'All-Star' not in game['gameLabel'] and 'Preseason' not in game['gameLabel'] and 'Rising Stars' not in game['gameLabel']:
                     games.append({
                         'game_id': game['gameId'],
                         'home_abrv': game['homeTeam']['teamTricode'],
@@ -87,28 +170,25 @@ def get_games(date, league_abrv):
                         'home_score': game['homeTeam']['score'],
                         'away_score': game['awayTeam']['score'],
                         'start_datetime_utc': dt.strptime(game['gameTimeUTC'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=tz.utc),
-                        'start_datetime_local': dt.strptime(game['gameTimeUTC'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=tz.utc).astimezone(tz=None), # Convert UTC to local time.
+                        'start_datetime_local': dt.strptime(game['gameTimeUTC'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=tz.utc).astimezone(tz=None),
                         'status': game['gameStatusText'],
-                        'status_code': game['gameStatus'], # 1=Scheduled, 2=In Progress, 3=Final.
+                        'status_code': game['gameStatus'],
                         'has_started': True if game['gameStatus'] > 1 else False,
                         'period_num': game['period'],
                         'period_type': 'OT' if game['period'] > 4 else 'Std',
-                        'period_time_remaining': game['gameClock'][2:4] + ':' + game['gameClock'][5:7] if game['gameClock'] != ':' else None, # API returns time remaining in PT##M##.##S format.
-                        'is_halftime': True if game['gameClock'] == 'PT00M00.00S' and game['period'] == 2 else False, # No explicit halftime flag, so infer based on period and clock.
-                        # Timeouts and fouls
+                        'period_time_remaining': game['gameClock'][2:4] + ':' + game['gameClock'][5:7] if game['gameClock'] != ':' else None,
+                        'is_halftime': True if game['gameClock'] == 'PT00M00.00S' and game['period'] == 2 else False,
                         'home_timeouts': game['homeTeam'].get('timeoutsRemaining', 0),
                         'away_timeouts': game['awayTeam'].get('timeoutsRemaining', 0),
                         'home_fouls': game['homeTeam'].get('fouls'),
                         'away_fouls': game['awayTeam'].get('fouls'),
-                        # Will set the remaining later, default to False and None for now.
                         'home_team_scored': False,
                         'away_team_scored': False,
                         'scoring_team': None
                     })
 
         # Sort games by game_id, ensuring that order remains consistent after games start/end.
-        games = sorted(games, key=lambda x: x['game_id'])
-
+        games = sorted(games, key=lambda x: str(x['game_id']))
         return games
 
 
