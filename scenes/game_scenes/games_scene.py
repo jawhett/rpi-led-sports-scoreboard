@@ -78,7 +78,7 @@ class GamesScene(Scene):
 
         # Note the month (3 char) and day number.
         month = date.strftime('%b')
-        day = date.strftime('%-d')
+        day = str(date.day)
 
         # Determine horizontal location, and add the date.
         month_col = 37 if len(day) == 1 else 35
@@ -101,7 +101,8 @@ class GamesScene(Scene):
         # Add the text 'No Games' and the date to the image.
         self.draw['full'].text((31, 0), 'No', font=self.FONTS['med'], fill=self.COLOURS['white'])
         self.draw['full'].text((31, 10), 'Games', font=self.FONTS['med'], fill=self.COLOURS['white'])
-        self.draw['full'].text((31, 21), date.strftime('%b %-d'), font=self.FONTS['sm'], fill=self.COLOURS['white'])
+        date_str = f"{date.strftime('%b')} {date.day}"
+        self.draw['full'].text((31, 21), date_str, font=self.FONTS['sm'], fill=self.COLOURS['white'])
 
 
     def build_game_not_started_image(self, game, rotation_mode=0):

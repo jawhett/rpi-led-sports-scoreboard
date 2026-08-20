@@ -175,8 +175,8 @@ class WorldCupGamesScene(GamesScene):
 
     def get_not_started_banner_text(self, game, rotation_mode):
         modes = []
-        time_str = game['start_datetime_local'].strftime('%-I:%M%p').replace('AM', 'A').replace('PM', 'P')
-        date_str = game['start_datetime_local'].strftime('%-m/%-d')
+        time_str = game['start_datetime_local'].strftime('%I:%M%p').lstrip('0').replace('AM', 'A').replace('PM', 'P')
+        date_str = f"{game['start_datetime_local'].month}/{game['start_datetime_local'].day}"
         modes.append(f"{date_str} {time_str}")
         
         if game.get('stage'):

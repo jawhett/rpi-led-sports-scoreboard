@@ -94,7 +94,7 @@ class FavTeamNextGameScene(Scene):
             else:
                 # Note the month (3 char) and day number.
                 month = game['start_datetime_local'].strftime('%b')
-                day = game['start_datetime_local'].strftime('%-d')
+                day = str(game['start_datetime_local'].day)
 
                 # Determine horizontal location, and add the date.
                 month_col = 37 if len(day) == 1 else 35

@@ -55,7 +55,7 @@ class StandingsScene(Scene):
 
         # Note the month (3 char) and day number.
         month = date.strftime('%b')
-        day = date.strftime('%-d')
+        day = str(date.day)
 
         # Determine horizontal location, and add the date.
         month_col = 37 if len(day) == 1 else 35
