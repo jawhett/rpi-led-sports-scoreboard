@@ -170,12 +170,33 @@ class GamesScene(Scene):
             w_b = get_text_3x5_width(banner_text)
             draw_text_3x5(self.draw['full'], max(22, min(32 - w_b // 2, 41 - w_b)), 14, banner_text, banner_color)
 
-        # 2. BOTTOM 10 PIXELS (rows 22..31, cols 0..63): MATCHUP INDICATOR
+        # 2. BOTTOM 10 PIXELS (rows 22..31, cols 0..63): TEAM TRICODES & MATCHUP
+        away_abrv = game.get('away_abrv', '')
+        home_abrv = game.get('home_abrv', '')
         vs_str = "@" if game.get('home_or_away') == 'away' else "VS"
+
+        color_away = data_utils.TEAM_COLORS.get(away_abrv, self.COLOURS['white'])
+        color_home = data_utils.TEAM_COLORS.get(home_abrv, self.COLOURS['white'])
+
         score_font = self.FONTS['sm_bold']
+
+        # Center separator (@ or VS)
         bbox_vs = self.draw['full'].textbbox((0, 0), vs_str, font=score_font)
         w_vs = bbox_vs[2] - bbox_vs[0]
-        self.draw['full'].text((32 - w_vs // 2, 22), vs_str, font=score_font, fill=self.COLOURS['yellow'])
+        x_vs = 32 - w_vs // 2
+        self.draw['full'].text((x_vs, 22), vs_str, font=score_font, fill=self.COLOURS['yellow'])
+
+        # Away tricode beneath away logo
+        bbox_away = self.draw['full'].textbbox((0, 0), away_abrv, font=score_font)
+        w_away = bbox_away[2] - bbox_away[0]
+        x_away = 11 - w_away // 2
+        self.draw['full'].text((max(0, x_away), 22), away_abrv, font=score_font, fill=color_away)
+
+        # Home tricode beneath home logo
+        bbox_home = self.draw['full'].textbbox((0, 0), home_abrv, font=score_font)
+        w_home = bbox_home[2] - bbox_home[0]
+        x_home = 53 - w_home // 2
+        self.draw['full'].text((min(64 - w_home, x_home), 22), home_abrv, font=score_font, fill=color_home)
 
 
     def build_game_in_progress_image(self, game):
@@ -515,7 +536,7 @@ class GamesScene(Scene):
         # 'Fade' transition.
         elif self.settings['transition'] == 'fade':
             # Define the 'fade rule', that is the steps between 0 (transparent) and 255 (opaque).
-            fade = (255, -1, -15) if direction == 'in' else (0, 256, 15)
+            fade = (255, -1, -30) if direction == 'in' else (0, 256, 30)
 
             # Build combined image if needed.
             if not image_already_combined:
@@ -530,16 +551,12 @@ class GamesScene(Scene):
 
                 # Display and sleep for a short time to pace the animation.
                 matrix.SetImage(faded_for_display_image)
-                sleep(0.025)
-
-            # Hold a moment with nothing displayed after fading out.
-            if direction == 'out':
-                sleep(0.2)
+                sleep(0.012)
 
         # 'Modern' transition.
         elif self.settings['transition'] == 'modern':
             # Define the 'fade rule', that is the steps between 0 (transparent) and 255 (opaque).
-            fade = (255, -1, -15) if direction == 'in' else (0, 256, 15)
+            fade = (255, -1, -30) if direction == 'in' else (0, 256, 30)
 
             # If the final image already exists, make a copy for later use.
             if image_already_combined:
@@ -565,7 +582,7 @@ class GamesScene(Scene):
 
                     # Display and sleep for a short time to pace the animation.
                     matrix.SetImage(faded_for_display_image)
-                    sleep(0.025)
+                    sleep(0.012)
             
             elif direction == 'out':
                 # Loop over opacities to apply to image and horizontal movement via col_offset.
@@ -587,10 +604,7 @@ class GamesScene(Scene):
 
                     # Display and sleep for a short time to pace the animation.
                     matrix.SetImage(faded_for_display_image)
-                    sleep(0.025)
-
-                # Hold a moment with nothing displayed.
-                sleep(0.2)
+                    sleep(0.012)
 
         # On way out of 'out' transitions, reset all images to black for next image build.
         if direction == 'out':

@@ -139,26 +139,32 @@ class NFLGamesScene(GamesScene):
                 # If the game has yet to begin, build the game not started image.
                 if game['status_code'] == 1:
                     duration = self.settings['game_display_duration']
-                    elapsed = 0.0
-                    step = 1.0
-                    
                     has_odds = bool(game.get('odds_str'))
-                    num_modes = 2 if has_odds else 1
                     
-                    # First build/transition
-                    self.build_game_not_started_image(game, rotation_mode=0)
-                    self.transition_image(direction='in', image_already_combined=True)
-                    
-                    while elapsed < duration:
-                        rotation_mode = int(elapsed // 2) % num_modes
-                        self.build_game_not_started_image(game, rotation_mode=rotation_mode)
-                        matrix.SetImage(self.images['full'])
+                    if not has_odds:
+                        self.build_game_not_started_image(game, rotation_mode=0)
+                        self.transition_image(direction='in', image_already_combined=True)
+                        sleep(duration)
+                        self.transition_image(direction='out', image_already_combined=True)
+                    else:
+                        elapsed = 0.0
+                        step = 2.5
+                        self.build_game_not_started_image(game, rotation_mode=0)
+                        self.transition_image(direction='in', image_already_combined=True)
                         
-                        sleep_time = min(step, duration - elapsed)
-                        sleep(sleep_time)
-                        elapsed += sleep_time
-                        
-                    self.transition_image(direction='out', image_already_combined=True)
+                        last_mode = 0
+                        while elapsed < duration:
+                            rotation_mode = int(elapsed // 2.5) % 2
+                            if rotation_mode != last_mode:
+                                self.build_game_not_started_image(game, rotation_mode=rotation_mode)
+                                matrix.SetImage(self.images['full'])
+                                last_mode = rotation_mode
+                            
+                            sleep_time = min(step, duration - elapsed)
+                            sleep(sleep_time)
+                            elapsed += sleep_time
+                            
+                        self.transition_image(direction='out', image_already_combined=True)
 
                 # If the game is over, build the final score image.
                 elif game['status_code'] == 3:
@@ -185,7 +191,7 @@ class NFLGamesScene(GamesScene):
                     elapsed = 0.0
                     step = 1.0
                     
-                    num_modes = 3 if self.LEAGUE == 'NFL' else 2
+                    num_modes = 3
                     
                     while elapsed < duration:
                         rotation_mode = int(elapsed // 2) % num_modes
@@ -223,37 +229,13 @@ class NFLGamesScene(GamesScene):
 
         parsed_odds = parse_odds(game.get('odds_str'))
         if rotation_mode == 1 and parsed_odds:
-            odds_str = f"{parsed_odds['fav_team']} {parsed_odds['spread']}"
-            if parsed_odds['ou']:
-                odds_str = f"{odds_str} U{parsed_odds['ou']}"
-            return odds_str, self.COLOURS['yellow_bright']
-        else:
-            from datetime import datetime as dt
-            if 'start_datetime_local' in game and game['start_datetime_local']:
-                game_date = game['start_datetime_local'].date()
-                today = dt.now().astimezone().date()
-                if game_date == today:
-                    date_str = "TODAY"
-                elif (game_date - today).days == 1:
-                    date_str = "TOMORROW"
-                else:
-                    date_str = game['start_datetime_local'].strftime('%b %d').upper()
-                    if " 0" in date_str:
-                        date_str = date_str.replace(" 0", " ")
-
-                time_str = game['start_datetime_local'].time().strftime('%I:%M %p')
-                if time_str.startswith('0'):
-                    time_str = time_str[1:]
-
-                banner_text = f"{date_str} {time_str}"
-                return banner_text, self.COLOURS['white']
-            else:
-                date_str = game.get('date_str', '')
-                time_str = game.get('time_str', '')
-                banner_text = f"{date_str} {time_str}".strip()
-                if not banner_text:
-                    banner_text = "NFL UPCOMING"
-                return banner_text, self.COLOURS['white']
+            spread = parsed_odds.get('spread', '')
+            fav = parsed_odds.get('fav_team', '')
+            if spread and fav:
+                return f"{fav} {spread}", self.COLOURS['yellow_bright']
+            elif parsed_odds.get('ou'):
+                return f"U{parsed_odds['ou']}", self.COLOURS['yellow_bright']
+        return "", self.COLOURS['white']
 
     def draw_complete_extras(self, game, rotation_mode):
         for i in range(3):

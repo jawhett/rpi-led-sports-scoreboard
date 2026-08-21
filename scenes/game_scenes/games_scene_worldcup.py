@@ -176,22 +176,21 @@ class WorldCupGamesScene(GamesScene):
 
     def get_not_started_banner_text(self, game, rotation_mode):
         modes = []
-        time_str = game['start_datetime_local'].strftime('%I:%M%p').lstrip('0').replace('AM', 'A').replace('PM', 'P')
-        date_str = f"{game['start_datetime_local'].month}/{game['start_datetime_local'].day}"
-        modes.append(f"{date_str} {time_str}")
-        
         if game.get('stage'):
-            modes.append(f"STAGE {game['stage']}")
+            modes.append(f"STG {game['stage']}")
             
-        loc = game.get('venue_name') or game.get('venue_city')
+        loc = game.get('venue_city') or game.get('venue_name')
         if loc:
             loc_str = loc.upper()
-            if len(loc_str) > 16:
-                loc_str = loc_str[:15] + "."
+            if len(loc_str) > 8:
+                loc_str = loc_str[:7] + "."
             modes.append(loc_str)
 
+        if not modes:
+            return "", self.COLOURS['white']
+
         display_str = modes[rotation_mode % len(modes)]
-        return display_str, self.COLOURS['white']
+        return display_str, self.COLOURS['yellow_bright']
 
     def get_final_status_text(self, game, rotation_mode):
         if rotation_mode % 2 == 1 and game.get('stage'):

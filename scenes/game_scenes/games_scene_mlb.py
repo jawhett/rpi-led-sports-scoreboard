@@ -159,32 +159,16 @@ class MLBGamesScene(GamesScene):
 
     def get_not_started_banner_text(self, game, rotation_mode):
         from utils.format_utils import parse_odds
-        from datetime import datetime as dt
 
         parsed_odds = parse_odds(game.get('odds_str'))
-        if parsed_odds:
-            odds_str = f"{parsed_odds['fav_team']} {parsed_odds['spread']}"
-            if parsed_odds['ou']:
-                odds_str = f"{odds_str} U{parsed_odds['ou']}"
-            return odds_str, self.COLOURS['yellow_bright']
-        else:
-            game_date = game['start_datetime_local'].date()
-            today = dt.now().astimezone().date()
-            if game_date == today:
-                date_str = "TODAY"
-            elif (game_date - today).days == 1:
-                date_str = "TOMORROW"
-            else:
-                date_str = game['start_datetime_local'].strftime('%b %d').upper()
-                if " 0" in date_str:
-                    date_str = date_str.replace(" 0", " ")
-
-            time_str = game['start_datetime_local'].time().strftime('%I:%M %p')
-            if time_str.startswith('0'):
-                time_str = time_str[1:]
-
-            banner_text = f"{date_str} {time_str}"
-            return banner_text, self.COLOURS['white']
+        if rotation_mode == 1 and parsed_odds:
+            spread = parsed_odds.get('spread', '')
+            fav = parsed_odds.get('fav_team', '')
+            if spread and fav:
+                return f"{fav} {spread}", self.COLOURS['yellow_bright']
+            elif parsed_odds.get('ou'):
+                return f"U{parsed_odds['ou']}", self.COLOURS['yellow_bright']
+        return "", self.COLOURS['white']
 
     def get_final_period_str(self, game):
         if game.get('inning_num', 9) > 9:

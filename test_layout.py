@@ -218,9 +218,32 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0):
                 draw.point((56 + i * 3, 31), fill=COLOURS['grey_dark'])
 
     elif status_code == 1:  # Scheduled
+        away_abrv = game.get('away_abrv', '')
+        home_abrv = game.get('home_abrv', '')
         vs_str = "@" if game.get('home_or_away') == 'away' else "VS"
-        w = get_text_3x5_width(vs_str)
-        draw_text_3x5(draw, 32 - w // 2, 27, vs_str, COLOURS['yellow'])
+
+        color_away = TEAM_COLORS.get(away_abrv, COLOURS['white'])
+        color_home = TEAM_COLORS.get(home_abrv, COLOURS['white'])
+
+        score_font = FONTS['sm_bold']
+
+        # Center separator (@ or VS)
+        bbox_vs = draw.textbbox((0, 0), vs_str, font=score_font)
+        w_vs = bbox_vs[2] - bbox_vs[0]
+        x_vs = 32 - w_vs // 2
+        draw.text((x_vs, 22), vs_str, font=score_font, fill=COLOURS['yellow'])
+
+        # Away tricode beneath away logo
+        bbox_away = draw.textbbox((0, 0), away_abrv, font=score_font)
+        w_away = bbox_away[2] - bbox_away[0]
+        x_away = 11 - w_away // 2
+        draw.text((max(0, x_away), 22), away_abrv, font=score_font, fill=color_away)
+
+        # Home tricode beneath home logo
+        bbox_home = draw.textbbox((0, 0), home_abrv, font=score_font)
+        w_home = bbox_home[2] - bbox_home[0]
+        x_home = 53 - w_home // 2
+        draw.text((min(64 - w_home, x_home), 22), home_abrv, font=score_font, fill=color_home)
 
     return img
 
