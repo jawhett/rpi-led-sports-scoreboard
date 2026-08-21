@@ -234,14 +234,34 @@ class PWHLGamesScene(GamesScene):
 
         image_utils.clear_image(self.images['full'], self.draw['full'])
 
-        # 1. ROWS 0..21: TEAM LOGOS (22x22)
+        # Helper to scale and center logos with aspect-ratio awareness
+        def paste_logo(logo_img, target_x_center, target_y_center=10):
+            if not logo_img:
+                return
+            w, h = logo_img.size
+            if w <= 0 or h <= 0:
+                return
+            aspect = float(w) / float(h)
+            if aspect > 1.3:  # Wide logo: allow expanding up to 28px width
+                scale = min(28.0 / w, 20.0 / h)
+            elif aspect < 0.77:  # Tall logo: allow expanding up to 21px height
+                scale = min(22.0 / w, 21.0 / h)
+            else:  # Square-ish logo
+                scale = min(22.0 / w, 20.0 / h)
+            new_w = max(1, int(round(w * scale)))
+            new_h = max(1, int(round(h * scale)))
+            resized = logo_img.resize((new_w, new_h), Image.Resampling.LANCZOS)
+            pos_x = max(0, min(64 - new_w, target_x_center - new_w // 2))
+            pos_y = max(0, min(32 - new_h, target_y_center - new_h // 2))
+            self.images['full'].paste(resized, (pos_x, pos_y))
+
+        # 1. ROWS 0..21: TEAM LOGOS (aspect-ratio aware)
         away_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["away_abrv"]}.png' if game["away_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["away_abrv"]}_{self.alt_logos[game["away_abrv"]]}.png'
         if os.path.exists(away_logo_path):
             try:
                 away_logo = Image.open(away_logo_path)
                 away_logo = image_utils.crop_image(away_logo)
-                away_logo.thumbnail((22, 22))
-                self.images['full'].paste(away_logo, (0, 0))
+                paste_logo(away_logo, target_x_center=11, target_y_center=10)
             except Exception as e:
                 pass
 
@@ -250,8 +270,7 @@ class PWHLGamesScene(GamesScene):
             try:
                 home_logo = Image.open(home_logo_path)
                 home_logo = image_utils.crop_image(home_logo)
-                home_logo.thumbnail((22, 22))
-                self.images['full'].paste(home_logo, (42, 0))
+                paste_logo(home_logo, target_x_center=53, target_y_center=10)
             except Exception as e:
                 pass
 
