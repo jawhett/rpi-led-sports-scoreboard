@@ -80,30 +80,36 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0):
         elif league in ('NBA', 'WNBA'):
             away_f = game.get('away_fouls', 0)
             home_f = game.get('home_fouls', 0)
-            if rotation_mode == 0 and game.get('leader_text'):
+            has_fouls = (away_f > 0 or home_f > 0)
+            has_win_pct = (game.get('home_win_pct') is not None)
+            has_leader = bool(game.get('leader_text'))
+
+            # Gather available live stat cards to rotate through
+            cards = []
+            if has_leader:
                 ldr = game['leader_text']
                 parts = ldr.split(' ')
                 if len(parts) == 2:
                     name, pts = parts[0], parts[1]
-                    # Show player name if <= 5 chars, otherwise pts
-                    info_text = name[:5] if len(name) <= 5 else pts
+                    cards.append((name[:5] if len(name) <= 5 else pts, COLOURS['yellow_bright']))
+                    cards.append((pts, COLOURS['yellow_bright']))
                 else:
-                    info_text = ldr[:5]
-                info_color = COLOURS['yellow_bright']
-            elif rotation_mode == 1 and game.get('leader_text'):
-                ldr = game['leader_text']
-                parts = ldr.split(' ')
-                info_text = parts[1] if len(parts) == 2 else "PTS"
-                info_color = COLOURS['yellow_bright']
-            elif (away_f > 0 or home_f > 0):
-                info_text = f"F {away_f}-{home_f}"
-                info_color = COLOURS['red_bright'] if (away_f >= 5 or home_f >= 5) else COLOURS['yellow_bright']
-            elif game.get('home_win_pct') is not None:
+                    cards.append((ldr[:5], COLOURS['yellow_bright']))
+
+            if has_fouls:
+                f_color = COLOURS['red_bright'] if (away_f >= 5 or home_f >= 5) else COLOURS['yellow_bright']
+                cards.append((f"F {away_f}-{home_f}", f_color))
+
+            if has_win_pct:
                 pct = game['home_win_pct']
                 fav_abrv = game['home_abrv'] if pct >= 50 else game['away_abrv']
                 fav_pct = int(pct if pct >= 50 else (100 - pct))
-                info_text = f"{fav_abrv} {fav_pct}%"
-                info_color = COLOURS['green_bright']
+                # Compact 3-4 char format to fit center 20px gap
+                cards.append((f"{fav_pct}%", COLOURS['green_bright']))
+
+            if cards:
+                selected_card = cards[rotation_mode % len(cards)]
+                info_text, info_color = selected_card[0], selected_card[1]
         elif league == 'MLB':
             outs_num = game.get('outs', 0)
             runners = []
@@ -480,6 +486,12 @@ if __name__ == '__main__':
     }
 
     build_mock_image(test_live_nba, clock_seconds_override=624, rotation_mode=0).save('test_layout_nba_live_leader.png')
+    build_mock_image(test_live_nba, clock_seconds_override=624, rotation_mode=1).save('test_layout_nba_live_pts.png')
+    build_mock_image(test_live_nba, clock_seconds_override=624, rotation_mode=2).save('test_layout_nba_live_winpct.png')
+    
+    test_live_nba_fouls = dict(test_live_nba, away_fouls=3, home_fouls=5)
+    build_mock_image(test_live_nba_fouls, clock_seconds_override=624, rotation_mode=2).save('test_layout_nba_live_fouls.png')
+
     build_mock_image(test_final_nba, rotation_mode=0).save('test_layout_nba_final_winner.png')
     build_mock_image(test_final_mlb, rotation_mode=0).save('test_layout_mlb_final.png')
     build_mock_image(test_sched_nba, rotation_mode=0).save('test_layout_nba_sched_spread.png')

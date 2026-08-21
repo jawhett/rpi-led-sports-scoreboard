@@ -194,10 +194,10 @@ class NBAWNBAGamesScene(GamesScene):
                     elapsed = 0.0
                     step = 1.0
                     
-                    num_modes = 2
+                    num_modes = 4
                     
                     while elapsed < duration:
-                        rotation_mode = int(elapsed // 2) % num_modes
+                        rotation_mode = int(elapsed // 2.5) % num_modes
                         blink = (int(elapsed) % 2 == 1)
                         self.build_game_in_progress_image(
                             game,
@@ -369,29 +369,30 @@ class NBAWNBAGamesScene(GamesScene):
         if alert_text_override:
             info_text = alert_text_override
             info_color = self.COLOURS['yellow_bright']
-        elif rotation_mode == 0 and game.get('leader_text'):
-            ldr = game['leader_text']
-            parts = ldr.split(' ')
-            if len(parts) == 2:
-                name, pts = parts[0], parts[1]
-                info_text = name[:5] if len(name) <= 5 else pts
-            else:
-                info_text = ldr[:5]
-            info_color = self.COLOURS['yellow_bright']
-        elif rotation_mode == 1 and game.get('leader_text'):
-            ldr = game['leader_text']
-            parts = ldr.split(' ')
-            info_text = parts[1] if len(parts) == 2 else "PTS"
-            info_color = self.COLOURS['yellow_bright']
-        elif (away_f > 0 or home_f > 0):
-            info_text = f"F {away_f}-{home_f}"
-            info_color = self.COLOURS['red_bright'] if (away_f >= 5 or home_f >= 5) else self.COLOURS['yellow_bright']
-        elif game.get('home_win_pct') is not None:
-            pct = game['home_win_pct']
-            fav_abrv = game['home_abrv'] if pct >= 50 else game['away_abrv']
-            fav_pct = int(pct if pct >= 50 else (100 - pct))
-            info_text = f"{fav_abrv} {fav_pct}%"
-            info_color = self.COLOURS['green_bright']
+        else:
+            cards = []
+            if game.get('leader_text'):
+                ldr = game['leader_text']
+                parts = ldr.split(' ')
+                if len(parts) == 2:
+                    name, pts = parts[0], parts[1]
+                    cards.append((name[:5] if len(name) <= 5 else pts, self.COLOURS['yellow_bright']))
+                    cards.append((pts, self.COLOURS['yellow_bright']))
+                else:
+                    cards.append((ldr[:5], self.COLOURS['yellow_bright']))
+
+            if away_f > 0 or home_f > 0:
+                f_color = self.COLOURS['red_bright'] if (away_f >= 5 or home_f >= 5) else self.COLOURS['yellow_bright']
+                cards.append((f"F {away_f}-{home_f}", f_color))
+
+            if game.get('home_win_pct') is not None:
+                pct = game['home_win_pct']
+                fav_pct = int(pct if pct >= 50 else (100 - pct))
+                cards.append((f"{fav_pct}%", self.COLOURS['green_bright']))
+
+            if cards:
+                selected_card = cards[rotation_mode % len(cards)]
+                info_text, info_color = selected_card[0], selected_card[1]
 
         if info_text:
             w_i = get_text_3x5_width(info_text)
