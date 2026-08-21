@@ -157,7 +157,7 @@ class NBAWNBAGamesScene(GamesScene):
                         
                         last_mode = 0
                         while elapsed < duration:
-                            rotation_mode = int(elapsed // 2.5) % 2
+                            rotation_mode = int(elapsed // 2.5) % 3
                             if rotation_mode != last_mode:
                                 self.build_game_not_started_image(game, rotation_mode=rotation_mode)
                                 matrix.SetImage(self.images['full'])
@@ -194,7 +194,10 @@ class NBAWNBAGamesScene(GamesScene):
                     elapsed = 0.0
                     step = 1.0
                     
-                    num_modes = 4
+                    # Number of carousel modes: Lead/Bonus, Scorer, Win%
+                    num_modes = 3
+                    if not game.get('leader_text') and game.get('home_win_pct') is None:
+                        num_modes = 1
                     
                     while elapsed < duration:
                         rotation_mode = int(elapsed // 2.5) % num_modes
@@ -231,8 +234,13 @@ class NBAWNBAGamesScene(GamesScene):
         from utils.format_utils import parse_odds
         from utils.font_utils import get_text_3x5_width
 
+        broadcaster = game.get('broadcaster') or game.get('tv')
         odds_raw = game.get('odds_str')
         parsed_odds = parse_odds(odds_raw) if odds_raw else None
+
+        if rotation_mode == 2 and broadcaster:
+            return broadcaster.upper()[:6], self.COLOURS['cyan']
+
         if parsed_odds:
             spread = parsed_odds.get('spread', '')
             fav = parsed_odds.get('fav_team', '')
@@ -255,7 +263,6 @@ class NBAWNBAGamesScene(GamesScene):
             elif ou:
                 return f"U{ou}", self.COLOURS['yellow_bright']
 
-        broadcaster = game.get('broadcaster') or game.get('tv')
         if broadcaster:
             return broadcaster.upper()[:6], self.COLOURS['cyan']
 

@@ -144,9 +144,14 @@ def get_games(date):
                         elif spread_text:
                             odds_str = spread_text
 
-                    # Check for OT
-                    period_type = 'OT' if period_num > 4 else 'Std'
-                
+                    # Broadcasters / TV
+                    broadcaster = None
+                    for b in comp.get('broadcasts', []):
+                        names = b.get('names', [])
+                        if names:
+                            broadcaster = names[0]
+                            break
+
                     games.append({
                         'game_id': event['id'],
                         'home_abrv': home_abrv,
@@ -169,6 +174,7 @@ def get_games(date):
                         'down_distance_text': down_distance_text,
                         'home_win_pct': home_win_pct,
                         'odds_str': odds_str,
+                        'broadcaster': broadcaster,
                         'home_team_scored': False,
                         'away_team_scored': False,
                         'scoring_team': None

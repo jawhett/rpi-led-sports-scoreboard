@@ -166,9 +166,13 @@ def get_games(date, league_abrv):
                                                 leaders_list.append((pts_int, f"{s_name.upper()[:6]} {pts_int}P"))
                                             except Exception:
                                                 pass
-                        if leaders_list:
-                            leaders_list.sort(key=lambda x: x[0], reverse=True)
-                            leader_text = leaders_list[0][1]
+                        # Broadcasters / TV
+                        broadcaster = None
+                        for b in comp.get('broadcasts', []):
+                            names = b.get('names', [])
+                            if names:
+                                broadcaster = names[0]
+                                break
 
                         games.append({
                             'game_id': ev['id'],
@@ -192,6 +196,7 @@ def get_games(date, league_abrv):
                             'leader_text': leader_text,
                             'home_win_pct': home_win_pct,
                             'odds_str': odds_str,
+                            'broadcaster': broadcaster,
                             'possession': poss_team,
                             'home_team_scored': False,
                             'away_team_scored': False,

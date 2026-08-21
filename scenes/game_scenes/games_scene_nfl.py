@@ -154,7 +154,7 @@ class NFLGamesScene(GamesScene):
                         
                         last_mode = 0
                         while elapsed < duration:
-                            rotation_mode = int(elapsed // 2.5) % 2
+                            rotation_mode = int(elapsed // 2.5) % 3
                             if rotation_mode != last_mode:
                                 self.build_game_not_started_image(game, rotation_mode=rotation_mode)
                                 matrix.SetImage(self.images['full'])
@@ -228,8 +228,13 @@ class NFLGamesScene(GamesScene):
         from utils.format_utils import parse_odds
         from utils.font_utils import get_text_3x5_width
 
+        broadcaster = game.get('broadcaster') or game.get('tv')
         odds_raw = game.get('odds_str')
         parsed_odds = parse_odds(odds_raw) if odds_raw else None
+
+        if rotation_mode == 2 and broadcaster:
+            return broadcaster.upper()[:6], self.COLOURS['cyan']
+
         if parsed_odds:
             spread = parsed_odds.get('spread', '')
             fav = parsed_odds.get('fav_team', '')
@@ -252,7 +257,6 @@ class NFLGamesScene(GamesScene):
             elif ou:
                 return f"U{ou}", self.COLOURS['yellow_bright']
 
-        broadcaster = game.get('broadcaster') or game.get('tv')
         if broadcaster:
             return broadcaster.upper()[:6], self.COLOURS['cyan']
 
@@ -356,6 +360,9 @@ class NFLGamesScene(GamesScene):
         if alert_text_override:
             info_text = alert_text_override
             info_color = self.COLOURS['yellow_bright']
+        elif game.get('is_red_zone') and rotation_mode == 0:
+            info_text = "REDZONE"
+            info_color = self.COLOURS['red_bright']
         elif rotation_mode == 2 and game.get('home_win_pct') is not None:
             pct = game['home_win_pct']
             fav_abrv = game['home_abrv'] if pct >= 50 else game['away_abrv']
@@ -364,7 +371,7 @@ class NFLGamesScene(GamesScene):
             info_color = self.COLOURS['green_bright']
         elif game.get('down_distance_text'):
             info_text = compact_down_distance(game['down_distance_text'])
-            info_color = self.COLOURS['white']
+            info_color = self.COLOURS['red_bright'] if info_text.startswith('4TH') else self.COLOURS['white']
 
         if info_text:
             w_i = get_text_3x5_width(info_text)
