@@ -162,36 +162,42 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0):
                 draw.line([(22 + away_px, 21), (41, 21)], fill=home_color)
             draw.point((32, 21), fill=COLOURS['black'])
 
-    elif status_code == 3:  # Completed
-        ot_str = game.get('ot_str', '')
-        status_text = f"F/{ot_str}" if ot_str else "FINAL"
-        w_s = get_text_3x5_width(status_text)
-        draw_text_3x5(draw, 32 - w_s // 2, 1, status_text, COLOURS['red_bright'])
+    elif status_code == 3:  # Completed - Red Border Stadium Layout
+        # Red Border signifying Final Status
+        draw.rectangle([(0, 0), (63, 31)], outline=COLOURS['red_bright'])
 
-        # Total points or margin on row 7
+        # Total points or OT on row 2
+        ot_str = game.get('ot_str', '')
         away_s = game.get('away_score', 0)
         home_s = game.get('home_score', 0)
+        
+        if ot_str:
+            top_str = ot_str if 'OT' in ot_str else f"{ot_str}OT"
+            w_top = get_text_3x5_width(top_str)
+            draw_text_3x5(draw, 32 - w_top // 2, 2, top_str, COLOURS['yellow_bright'])
+        else:
+            win_abrv = game['away_abrv'] if away_s > home_s else game['home_abrv']
+            diff = abs(away_s - home_s)
+            margin_str = f"+{diff} {win_abrv}" if diff > 0 else "FINAL"
+            w_m = get_text_3x5_width(margin_str)
+            draw_text_3x5(draw, 32 - w_m // 2, 2, margin_str, COLOURS['yellow_bright'])
+
+        # Total points on row 8
         tot = away_s + home_s
         tot_str = f"TOT {tot}"
         w_t = get_text_3x5_width(tot_str)
-        draw_text_3x5(draw, 32 - w_t // 2, 7, tot_str, COLOURS['white'])
+        draw_text_3x5(draw, 32 - w_t // 2, 8, tot_str, COLOURS['white'])
 
         # Extra context / winner tag on row 14
-        win_abrv = game['away_abrv'] if away_s > home_s else game['home_abrv']
-        diff = abs(away_s - home_s)
-        sub_text = f"+{diff} {win_abrv}" if diff > 0 else "TIED"
-        if game.get('series_text'):
-            sub_text = game['series_text']
+        sub_text = game.get('series_text') or ("PHX WIN" if home_s > away_s else "BOS WIN")
         w_sub = get_text_3x5_width(sub_text)
-        draw_text_3x5(draw, max(22, min(32 - w_sub // 2, 41 - w_sub)), 14, sub_text, COLOURS['yellow_bright'])
+        draw_text_3x5(draw, max(22, min(32 - w_sub // 2, 41 - w_sub)), 14, sub_text, COLOURS['green_bright'])
 
         # Winner under-glow on row 21
         if away_s > home_s:
-            draw.rectangle([(4, 21), (17, 21)], fill=COLOURS['yellow_bright'])
-            draw.rectangle([(0, 30), (1, 31)], fill=COLOURS['green_bright'])
+            draw.rectangle([(4, 21), (19, 21)], fill=COLOURS['yellow_bright'])
         elif home_s > away_s:
-            draw.rectangle([(46, 21), (59, 21)], fill=COLOURS['yellow_bright'])
-            draw.rectangle([(62, 30), (63, 31)], fill=COLOURS['green_bright'])
+            draw.rectangle([(44, 21), (59, 21)], fill=COLOURS['yellow_bright'])
 
     elif status_code == 1:  # Scheduled
         date_str = game.get('date_str', 'TODAY')
