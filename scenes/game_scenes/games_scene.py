@@ -278,8 +278,8 @@ class GamesScene(Scene):
             draw_text_3x5(self.draw['full'], 32 - w_c // 2, 8, center_text, self.COLOURS['yellow_bright'])
 
         # 2. BOTTOM ROWS (rows 22..31, cols 0..63): TEAM NAMES, SCORES & SMALL DASH
-        color_away = data_utils.TEAM_COLORS.get(game.get('away_abrv'), self.COLOURS['white'])
-        color_home = data_utils.TEAM_COLORS.get(game.get('home_abrv'), self.COLOURS['white'])
+        color_away = data_utils.get_team_color(game.get('away_abrv'), self.COLOURS['white'])
+        color_home = data_utils.get_team_color(game.get('home_abrv'), self.COLOURS['white'])
 
         if away_score < home_score:
             color_away = (120, 120, 120)

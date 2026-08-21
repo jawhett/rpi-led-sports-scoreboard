@@ -69,12 +69,12 @@ TEAM_COLORS = {
     'BAL': (26, 25, 95),     # Ravens Purple
     'BUF': (0, 51, 141),     # Bills Blue
     'CIN': (251, 79, 20),    # Bengals Orange
-    'CLE_NFL': (49, 38, 29), # Browns Brown
+    'CLE_NFL': (255, 60, 0), # Browns Orange
     'DEN_NFL': (251, 79, 20),# Broncos Orange
     'HOU_NFL': (3, 32, 47),  # Texans Navy
     'IND_NFL': (0, 45, 98),  # Colts Horseshoe Blue
     'JAX': (0, 103, 120),    # Jaguars Teal
-    'LV':  (0, 0, 0),        # Raiders Black
+    'LV':  (196, 206, 211),  # Raiders/Aces Silver (prevent pure black score on black matrix)
     'LAC_NFL': (0, 128, 198),# Chargers Powder Blue
     'MIA_NFL': (0, 142, 151),# Dolphins Teal
     'NE':  (0, 34, 68),      # Patriots Navy
@@ -102,11 +102,11 @@ TEAM_COLORS = {
     'LAD': (0, 90, 156),     # Dodgers Blue
     'BOS_MLB': (189, 48, 57),# Red Sox Red
     'CHC': (14, 51, 134),    # Cubs Blue
-    'CHW': (39, 37, 31),     # White Sox Black
+    'CHW': (196, 206, 211),  # White Sox Silver
     'HOU_MLB': (235, 110, 31),# Astros Orange
     'NYM': (0, 44, 119),     # Mets Blue
     'PHI_MLB': (232, 24, 40),# Phillies Red
-    'SD':  (47, 36, 29),     # Padres Brown
+    'SD':  (255, 196, 37),   # Padres Gold
     'SF_MLB': (253, 90, 30), # Giants Orange
     'STL': (196, 30, 58),    # Cardinals Red
     'TEX': (0, 50, 120),     # Rangers Blue
@@ -121,4 +121,14 @@ TEAM_COLORS = {
     'TOR_NHL': (0, 32, 91),  # Maple Leafs Blue
     'VGK': (185, 151, 91),   # Golden Knights Gold
 }
+
+def get_team_color(abrv, fallback=(255, 255, 255)):
+    """ Returns a high-contrast team color, ensuring colors are never black or too dim to see on LED matrix.
+    """
+    color = TEAM_COLORS.get(abrv, fallback)
+    r, g, b = color
+    lum = 0.299 * r + 0.587 * g + 0.114 * b
+    if lum < 35 or color == (0, 0, 0):
+        return (220, 220, 220)
+    return color
 
