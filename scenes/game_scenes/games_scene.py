@@ -285,24 +285,30 @@ class GamesScene(Scene):
         away_score = game['away_score'] if game.get('away_score') is not None else 0
         home_score = game['home_score'] if game.get('home_score') is not None else 0
 
-        # Center Channel: OT or Series context only (no FINAL or team WIN clutter)
+        # Center Channel: Top header on row 3 (FINAL, OT, or Series)
         ot_str = ""
         if hasattr(self, 'get_final_period_str'):
             ot_str = self.get_final_period_str(game)
 
-        center_text = ""
+        top_str = "FINAL"
         if ot_str and ot_str not in ("Std", "None", ""):
-            center_text = ot_str if "OT" in ot_str else f"F/{ot_str}"
+            top_str = ot_str if "OT" in ot_str else f"F/{ot_str}"
         elif game.get('series_text'):
-            center_text = game['series_text']
+            top_str = game['series_text']
 
-        if center_text:
-            w_c = get_text_3x5_width(center_text)
-            draw_text_3x5(self.draw['full'], 32 - w_c // 2, 8, center_text, self.COLOURS['yellow_bright'])
+        w_top = get_text_3x5_width(top_str)
+        draw_text_3x5(self.draw['full'], 32 - w_top // 2, 3, top_str, self.COLOURS['yellow_bright'])
 
-        # "VS" in center channel aligned with bottom of logos at y=15
-        w_vs = get_text_3x5_width("VS")
-        draw_text_3x5(self.draw['full'], 32 - w_vs // 2, 15, "VS", self.COLOURS['yellow'])
+        # Top Performer / Leader line on row 12 if available, else "VS" at row 14
+        leader = game.get('leader_text')
+        if leader:
+            parts = leader.split(' ')
+            line_str = f"{parts[0][:4]} {parts[1]}" if len(parts) == 2 else leader[:7]
+            w_l = get_text_3x5_width(line_str)
+            draw_text_3x5(self.draw['full'], max(22, min(32 - w_l // 2, 41 - w_l)), 12, line_str, self.COLOURS['cyan'])
+        else:
+            w_vs = get_text_3x5_width("VS")
+            draw_text_3x5(self.draw['full'], 32 - w_vs // 2, 14, "VS", self.COLOURS['yellow'])
 
         # 2. BOTTOM ROWS (rows 22..31, cols 0..63): TEAM NAMES & SCORES
         color_away = data_utils.get_team_color(game.get('away_abrv'), self.COLOURS['white'])

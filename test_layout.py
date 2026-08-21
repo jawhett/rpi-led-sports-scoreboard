@@ -306,10 +306,23 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0, alert_t
                 for col in range(rz_start, rz_end + 1):
                     draw.point((col, 21), fill=(100, 25, 25))
 
-            # Ball Position Pixel (Blinking Yellow)
-            yard_line = game.get('yard_line', 50)
+            # Ball Position Pixel & Line-to-Gain (First Down Marker)
+            yard_line = game.get('yard_line', 50) if game.get('yard_line') is not None else 50
             ball_col = int(round(22 + (max(0, min(100, yard_line)) / 100.0) * 19))
-            draw.point((ball_col, 21), fill=COLOURS['yellow_bright'])
+            
+            # Line-to-gain / 1st down marker (yellow line)
+            dist = game.get('distance')
+            if dist is not None and dist > 0:
+                if game.get('possession') == 'away':
+                    fd_yd = min(100, yard_line + dist)
+                else:
+                    fd_yd = max(0, yard_line - dist)
+                fd_col = int(round(22 + (max(0, min(100, fd_yd)) / 100.0) * 19))
+                if fd_col != ball_col:
+                    draw.point((fd_col, 21), fill=(255, 180, 0)) # First Down Marker
+
+            ball_color = COLOURS['yellow_bright']
+            draw.point((ball_col, 21), fill=ball_color)
 
         elif league in ('NBA', 'WNBA'):
             # Win Probability / Momentum Micro-Bar (cols 22..41, row 21)
@@ -333,19 +346,25 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0, alert_t
     elif status_code == 3:  # Completed - Spacious Stadium Layout with Centered Scores
         # Center Channel: OT / Series context if applicable on row 8
         ot_str = game.get('ot_str', '')
-        series_text = game.get('series_text', '')
-
-        center_text = ""
+        top_str = "FINAL"
         if ot_str and ot_str not in ("Std", "None", ""):
-            center_text = ot_str if "OT" in ot_str else f"F/{ot_str}"
-        elif series_text:
-            center_text = series_text
-        else:
-            center_text = "FINAL"
+            top_str = ot_str if "OT" in ot_str else f"F/{ot_str}"
+        elif game.get('series_text'):
+            top_str = game['series_text']
 
-        if center_text:
-            w_c = get_text_3x5_width(center_text)
-            draw_text_3x5(draw, 32 - w_c // 2, 8, center_text, COLOURS['yellow_bright'])
+        w_top = get_text_3x5_width(top_str)
+        draw_text_3x5(draw, 32 - w_top // 2, 3, top_str, COLOURS['yellow_bright'])
+
+        # Top Performer / Leader line on row 12 if available, else "VS"
+        leader = game.get('leader_text')
+        if leader:
+            parts = leader.split(' ')
+            line_str = f"{parts[0][:4]} {parts[1]}" if len(parts) == 2 else leader[:7]
+            w_l = get_text_3x5_width(line_str)
+            draw_text_3x5(draw, max(22, min(32 - w_l // 2, 41 - w_l)), 12, line_str, COLOURS['cyan'])
+        else:
+            w_vs = get_text_3x5_width("VS")
+            draw_text_3x5(draw, 32 - w_vs // 2, 14, "VS", COLOURS['yellow'])
 
     # --- BOTTOM ROWS (rows 22..31, cols 0..63): SCORES & TIMEOUTS ---
     if status_code in (2, 3):  # Live or Final
@@ -565,6 +584,7 @@ if __name__ == '__main__':
         'is_red_zone': True,
         'down_distance_text': '1ST & GOAL',
         'yard_line': 88,
+        'distance': 5,
         'home_win_pct': 36.2
     }
 
@@ -587,7 +607,8 @@ if __name__ == '__main__':
         'away_score': 102,
         'home_score': 108,
         'status_code': 3,
-        'ot_str': ''
+        'ot_str': '',
+        'leader_text': 'BOOKER 38P'
     }
 
     test_sched_nba = {
@@ -653,6 +674,7 @@ if __name__ == '__main__':
     build_mock_image(test_live_mlb_loaded).save('test_layout_mlb_live_loaded.png')
 
     build_mock_image(test_final_mlb, rotation_mode=0).save('test_layout_mlb_final.png')
+    build_mock_image(test_final_nba, rotation_mode=0).save('test_layout_nba_final.png')
     build_mock_image(test_sched_nba, rotation_mode=0).save('test_layout_nba_sched_spread.png')
     build_mock_image(test_sched_nba, rotation_mode=1).save('test_layout_nba_sched_ou.png')
     build_mock_image(test_live_nfl, clock_seconds_override=135, rotation_mode=1).save('test_layout_nfl_live_downdist.png')

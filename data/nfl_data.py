@@ -178,6 +178,7 @@ def get_games(date):
                         'is_red_zone': is_red_zone,
                         'down_distance_text': down_distance_text,
                         'yard_line': yard_line,
+                        'distance': distance,
                         'home_win_pct': home_win_pct,
                         'odds_str': odds_str,
                         'broadcaster': broadcaster,

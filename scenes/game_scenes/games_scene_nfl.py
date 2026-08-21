@@ -396,9 +396,21 @@ class NFLGamesScene(GamesScene):
             for col in range(rz_start, rz_end + 1):
                 self.draw['full'].point((col, 21), fill=(100, 25, 25))
 
-        # Ball Position Pixel (Blinking Yellow Marker)
+        # Ball Position Pixel & Line-to-Gain (First Down Marker)
         yard_line = game.get('yard_line', 50) if game.get('yard_line') is not None else 50
         ball_col = int(round(22 + (max(0, min(100, yard_line)) / 100.0) * 19))
+        
+        # Line-to-gain / 1st down marker (bright amber line)
+        dist = game.get('distance')
+        if dist is not None and dist > 0:
+            if game.get('possession') == 'away':
+                fd_yd = min(100, yard_line + dist)
+            else:
+                fd_yd = max(0, yard_line - dist)
+            fd_col = int(round(22 + (max(0, min(100, fd_yd)) / 100.0) * 19))
+            if fd_col != ball_col:
+                self.draw['full'].point((fd_col, 21), fill=(255, 180, 0))
+
         ball_color = self.COLOURS['yellow_bright'] if not blink_colon else (255, 255, 255)
         self.draw['full'].point((ball_col, 21), fill=ball_color)
 
