@@ -243,52 +243,57 @@ class GamesScene(Scene):
         away_score = game['away_score'] if game.get('away_score') is not None else 0
         home_score = game['home_score'] if game.get('home_score') is not None else 0
 
-        # Dimmed Red Border signifying Final Status
-        self.draw['full'].rectangle([(0, 0), (63, 31)], outline=self.COLOURS.get('red_dim', (80, 15, 15)))
-
-        # Center Channel (cols 22..41, rows 0..21): OT / Series context only when applicable
-        period_str = ""
+        # 1. Center Channel (cols 22..41, rows 0..21): FINAL, Winner/Series, Decision
+        ot_str = ""
         if hasattr(self, 'get_final_period_str'):
-            period_str = self.get_final_period_str(game)
+            ot_str = self.get_final_period_str(game)
 
-        center_text = ""
-        center_color = self.COLOURS['yellow_bright']
-        if period_str and period_str not in ("", "Std", "None"):
-            center_text = period_str if "OT" in period_str else f"F/{period_str}"
-        elif game.get('series_text'):
-            center_text = game['series_text']
+        # Row 1: FINAL or F/OT
+        status_line = f"F/{ot_str}" if (ot_str and ot_str not in ("Std", "None", "")) else "FINAL"
+        w_s = get_text_3x5_width(status_line)
+        draw_text_3x5(self.draw['full'], 32 - w_s // 2, 1, status_line, self.COLOURS['yellow_bright'])
 
-        if center_text:
-            w_c = get_text_3x5_width(center_text)
-            draw_text_3x5(self.draw['full'], 32 - w_c // 2, 8, center_text, center_color)
+        # Row 7: Winner or Series Context
+        winner_abrv = game.get('away_abrv', '') if away_score > home_score else game.get('home_abrv', '')
+        mid_line = game.get('series_text') or (f"{winner_abrv} WIN" if away_score != home_score else "")
+        if mid_line:
+            w_m = get_text_3x5_width(mid_line)
+            draw_text_3x5(self.draw['full'], 32 - w_m // 2, 7, mid_line, self.COLOURS['white'])
 
-        # 2. BOTTOM 10 PIXELS (rows 22..31, cols 0..63): ENLARGED FINAL SCORES
+        # Row 14: Decision / Pitcher / Extras
+        extra_line = game.get('decision_text', '')
+        if extra_line:
+            w_e = get_text_3x5_width(extra_line)
+            draw_text_3x5(self.draw['full'], max(22, min(32 - w_e // 2, 41 - w_e)), 14, extra_line, self.COLOURS['yellow_bright'])
+
+        # 2. BOTTOM 10 PIXELS (rows 22..31, cols 0..63): TEAM TRICODES & FINAL SCORES
         color_away = data_utils.TEAM_COLORS.get(game.get('away_abrv'), self.COLOURS['white'])
         color_home = data_utils.TEAM_COLORS.get(game.get('home_abrv'), self.COLOURS['white'])
 
         if away_score < home_score:
-            color_away = (120, 120, 120)
+            color_away = (130, 130, 130)
         elif home_score < away_score:
-            color_home = (120, 120, 120)
-
-        away_score_str = str(away_score)
-        home_score_str = str(home_score)
+            color_home = (130, 130, 130)
 
         score_font = self.FONTS['sm_bold']
-        bbox_away = self.draw['full'].textbbox((0, 0), away_score_str, font=score_font)
+        away_str = f"{game.get('away_abrv', '')} {away_score}"
+        home_str = f"{home_score} {game.get('home_abrv', '')}"
+
+        bbox_away = self.draw['full'].textbbox((0, 0), away_str, font=score_font)
         w_away = bbox_away[2] - bbox_away[0]
-        bbox_home = self.draw['full'].textbbox((0, 0), home_score_str, font=score_font)
+        x_away = 11 - w_away // 2
+
+        bbox_home = self.draw['full'].textbbox((0, 0), home_str, font=score_font)
         w_home = bbox_home[2] - bbox_home[0]
+        x_home = 53 - w_home // 2
+
         bbox_dash = self.draw['full'].textbbox((0, 0), "-", font=score_font)
         w_dash = bbox_dash[2] - bbox_dash[0]
-
         x_dash = 32 - w_dash // 2
-        x_away = x_dash - 2 - w_away
-        x_home = x_dash + w_dash + 2
 
-        self.draw['full'].text((x_away, 22), away_score_str, font=score_font, fill=color_away)
+        self.draw['full'].text((max(0, x_away), 22), away_str, font=score_font, fill=color_away)
         self.draw['full'].text((x_dash, 22), "-", font=score_font, fill=self.COLOURS['grey_light'])
-        self.draw['full'].text((x_home, 22), home_score_str, font=score_font, fill=color_home)
+        self.draw['full'].text((min(64 - w_home, x_home), 22), home_str, font=score_font, fill=color_home)
 
         if hasattr(self, 'draw_complete_extras'):
             self.draw_complete_extras(game, rotation_mode)

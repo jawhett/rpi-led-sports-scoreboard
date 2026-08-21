@@ -133,11 +133,42 @@ def get_games(date, league_abrv):
                             elif ou:
                                 odds_str = f"O/U {ou}"
 
-                        # Situation / Possession
+                        # Situation / Possession / Win Probability
                         sit = comp.get('situation', {})
                         poss_team = None
                         if sit.get('possession'):
                             poss_team = 'home' if str(sit['possession']) == str(home_team['id']) else 'away'
+
+                        home_win_pct = None
+                        prob = sit.get('lastPlay', {}).get('probability', {})
+                        if prob and 'homeWinPercentage' in prob:
+                            try:
+                                home_win_pct = float(prob['homeWinPercentage']) * 100
+                            except Exception:
+                                pass
+
+                        # Live Points Leaders
+                        leader_text = None
+                        leaders_list = []
+                        for comp_t in (away_team, home_team):
+                            for ldr_cat in comp_t.get('leaders', []):
+                                if ldr_cat.get('name') in ('points', 'rating') or 'Point' in ldr_cat.get('displayName', ''):
+                                    l_sub = ldr_cat.get('leaders', [])
+                                    if l_sub:
+                                        ath = l_sub[0].get('athlete', {})
+                                        s_name = ath.get('shortName') or ath.get('lastName') or ''
+                                        if '.' in s_name:
+                                            s_name = s_name.split('.')[-1].strip()
+                                        pts_val = l_sub[0].get('displayValue', '')
+                                        if s_name and pts_val:
+                                            try:
+                                                pts_int = int(pts_val.split(' ')[0])
+                                                leaders_list.append((pts_int, f"{s_name.upper()[:6]} {pts_int}P"))
+                                            except Exception:
+                                                pass
+                        if leaders_list:
+                            leaders_list.sort(key=lambda x: x[0], reverse=True)
+                            leader_text = leaders_list[0][1]
 
                         games.append({
                             'game_id': ev['id'],
@@ -158,6 +189,8 @@ def get_games(date, league_abrv):
                             'away_timeouts': away_team.get('timeoutsRemaining', 3),
                             'home_fouls': home_team.get('fouls', 0) or 0,
                             'away_fouls': away_team.get('fouls', 0) or 0,
+                            'leader_text': leader_text,
+                            'home_win_pct': home_win_pct,
                             'odds_str': odds_str,
                             'possession': poss_team,
                             'home_team_scored': False,

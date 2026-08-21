@@ -350,9 +350,21 @@ class NBAWNBAGamesScene(GamesScene):
         if alert_text_override:
             info_text = alert_text_override
             info_color = self.COLOURS['yellow_bright']
-        elif game.get('away_fouls') is not None or game.get('home_fouls') is not None:
+        elif rotation_mode == 0 and game.get('leader_text'):
+            info_text = game['leader_text']
+            info_color = self.COLOURS['yellow_bright']
+        elif (away_f > 0 or home_f > 0):
             info_text = f"F {away_f}-{home_f}"
             info_color = self.COLOURS['red_bright'] if (away_f >= 5 or home_f >= 5) else self.COLOURS['yellow_bright']
+        elif game.get('leader_text'):
+            info_text = game['leader_text']
+            info_color = self.COLOURS['yellow_bright']
+        elif game.get('home_win_pct') is not None and rotation_mode == 1:
+            pct = game['home_win_pct']
+            fav_abrv = game['home_abrv'] if pct >= 50 else game['away_abrv']
+            fav_pct = int(pct if pct >= 50 else (100 - pct))
+            info_text = f"{fav_abrv} {fav_pct}%"
+            info_color = self.COLOURS['green_bright']
 
         if info_text:
             w_i = get_text_3x5_width(info_text)

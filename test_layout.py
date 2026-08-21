@@ -77,9 +77,24 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0):
         if league == 'NFL' and game.get('down_distance_text'):
             info_text = compact_down_distance(game['down_distance_text'])
             info_color = COLOURS['white']
-        elif league in ('NBA', 'WNBA') and (game.get('away_fouls') is not None or game.get('home_fouls') is not None):
-            info_text = f"F {game.get('away_fouls', 0)}-{game.get('home_fouls', 0)}"
-            info_color = COLOURS['red_bright'] if (game.get('away_fouls', 0) >= 5 or game.get('home_fouls', 0) >= 5) else COLOURS['yellow_bright']
+        elif league in ('NBA', 'WNBA'):
+            away_f = game.get('away_fouls', 0)
+            home_f = game.get('home_fouls', 0)
+            if rotation_mode == 0 and game.get('leader_text'):
+                info_text = game['leader_text']
+                info_color = COLOURS['yellow_bright']
+            elif (away_f > 0 or home_f > 0):
+                info_text = f"F {away_f}-{home_f}"
+                info_color = COLOURS['red_bright'] if (away_f >= 5 or home_f >= 5) else COLOURS['yellow_bright']
+            elif game.get('leader_text'):
+                info_text = game['leader_text']
+                info_color = COLOURS['yellow_bright']
+            elif game.get('home_win_pct') is not None and rotation_mode == 1:
+                pct = game['home_win_pct']
+                fav_abrv = game['home_abrv'] if pct >= 50 else game['away_abrv']
+                fav_pct = int(pct if pct >= 50 else (100 - pct))
+                info_text = f"{fav_abrv} {fav_pct}%"
+                info_color = COLOURS['green_bright']
         elif league == 'MLB':
             outs_num = game.get('outs', 0)
             runners = []
@@ -162,83 +177,84 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0):
                 draw.line([(22 + away_px, 21), (41, 21)], fill=home_color)
             draw.point((32, 21), fill=COLOURS['black'])
 
-    elif status_code == 3:  # Completed - Clean Stadium Layout
-        # Dimmed Red Border signifying Final Status
-        draw.rectangle([(0, 0), (63, 31)], outline=COLOURS.get('red_dim', (80, 15, 15)))
-
-        # Center Channel: OT or Series context only
+    elif status_code == 3:  # Completed - Repurposed Stadium Layout
+        # Center Channel: Row 1 = FINAL, Row 7 = Extras/Series/Winner, Row 14 = Decision/Recap
         ot_str = game.get('ot_str', '')
         series_text = game.get('series_text', '')
 
-        center_text = ""
-        if ot_str and ot_str not in ("Std", "None", ""):
-            center_text = ot_str if 'OT' in ot_str else f"{ot_str}OT"
-        elif series_text:
-            center_text = series_text
+        # Row 1: FINAL or F/OT
+        status_line = f"F/{ot_str}" if (ot_str and ot_str not in ("Std", "None", "")) else "FINAL"
+        w_s = get_text_3x5_width(status_line)
+        draw_text_3x5(draw, 32 - w_s // 2, 1, status_line, COLOURS['yellow_bright'])
 
-        if center_text:
-            w_c = get_text_3x5_width(center_text)
-            draw_text_3x5(draw, 32 - w_c // 2, 8, center_text, COLOURS['yellow_bright'])
+        # Row 7: Winner or Series Context
+        away_s = game.get('away_score', 0)
+        home_s = game.get('home_score', 0)
+        winner_abrv = game.get('away_abrv', '') if away_s > home_s else game.get('home_abrv', '')
+        
+        mid_line = series_text if series_text else (f"{winner_abrv} WIN" if away_s != home_s else "")
+        if mid_line:
+            w_m = get_text_3x5_width(mid_line)
+            draw_text_3x5(draw, 32 - w_m // 2, 7, mid_line, COLOURS['white'])
 
-    elif status_code == 1:  # Scheduled
-        date_str = game.get('date_str', 'TODAY')
-        time_str = game.get('time_str', '')
-        w_d = get_text_3x5_width(date_str)
-        draw_text_3x5(draw, 32 - w_d // 2, 1, date_str, COLOURS['yellow_bright'])
-        w_t = get_text_3x5_width(time_str)
-        draw_text_3x5(draw, 32 - w_t // 2, 7, time_str, COLOURS['white'])
+        # Row 14: Decision / Extra Info (e.g. W:MILLER)
+        extra_line = game.get('decision_text', '')
+        if extra_line:
+            w_e = get_text_3x5_width(extra_line)
+            draw_text_3x5(draw, max(22, min(32 - w_e // 2, 41 - w_e)), 14, extra_line, COLOURS['yellow_bright'])
 
-        # Odds on row 14
-        odds_raw = game.get('odds_str', '')
-        parsed_odds = parse_odds(odds_raw) if odds_raw else None
-        odds_line = ""
-        if parsed_odds:
-            if rotation_mode == 1 and parsed_odds.get('ou'):
-                odds_line = f"U{parsed_odds['ou']}"
-            elif parsed_odds.get('fav_team') and parsed_odds.get('spread'):
-                odds_line = f"{parsed_odds['fav_team']} {parsed_odds['spread']}"
-            elif parsed_odds.get('spread'):
-                odds_line = parsed_odds['spread']
-            elif parsed_odds.get('ou'):
-                odds_line = f"U{parsed_odds['ou']}"
-        elif game.get('broadcaster'):
-            odds_line = game['broadcaster'][:6].upper()
-
-        if odds_line:
-            w_o = get_text_3x5_width(odds_line)
-            draw_text_3x5(draw, max(22, min(32 - w_o // 2, 41 - w_o)), 14, odds_line, COLOURS['yellow_bright'])
-
-    # --- BOTTOM 10 PIXELS (rows 22..31, cols 0..63): CENTER SCORES & CORNER INDICATORS ---
+    # --- BOTTOM 10 PIXELS (rows 22..31, cols 0..63): BOTTOM MATCHUP & SCORES ---
     if status_code in (2, 3):  # Live or Final
         away_score_val = game.get('away_score', 0)
         home_score_val = game.get('home_score', 0)
-        away_score_str = str(away_score_val)
-        home_score_str = str(home_score_val)
 
         color_away = TEAM_COLORS.get(game['away_abrv'], COLOURS['white'])
         color_home = TEAM_COLORS.get(game['home_abrv'], COLOURS['white'])
 
         if status_code == 3:
             if away_score_val < home_score_val:
-                color_away = (120, 120, 120)
+                color_away = (130, 130, 130)
             elif home_score_val < away_score_val:
-                color_home = (120, 120, 120)
+                color_home = (130, 130, 130)
 
         score_font = FONTS['sm_bold']
-        bbox_away = draw.textbbox((0, 0), away_score_str, font=score_font)
-        w_away = bbox_away[2] - bbox_away[0]
-        bbox_home = draw.textbbox((0, 0), home_score_str, font=score_font)
-        w_home = bbox_home[2] - bbox_home[0]
-        bbox_dash = draw.textbbox((0, 0), "-", font=score_font)
-        w_dash = bbox_dash[2] - bbox_dash[0]
+        if status_code == 3:
+            # Match upcoming game positioning: Team Tricode + Score under each logo
+            away_str = f"{game['away_abrv']} {away_score_val}"
+            home_str = f"{home_score_val} {game['home_abrv']}"
+            
+            bbox_away = draw.textbbox((0, 0), away_str, font=score_font)
+            w_away = bbox_away[2] - bbox_away[0]
+            x_away = 11 - w_away // 2
+            
+            bbox_home = draw.textbbox((0, 0), home_str, font=score_font)
+            w_home = bbox_home[2] - bbox_home[0]
+            x_home = 53 - w_home // 2
+            
+            bbox_dash = draw.textbbox((0, 0), "-", font=score_font)
+            w_dash = bbox_dash[2] - bbox_dash[0]
+            x_dash = 32 - w_dash // 2
 
-        x_dash = 32 - w_dash // 2
-        x_away = x_dash - 2 - w_away
-        x_home = x_dash + w_dash + 2
+            draw.text((max(0, x_away), 22), away_str, font=score_font, fill=color_away)
+            draw.text((x_dash, 22), "-", font=score_font, fill=COLOURS['grey_light'])
+            draw.text((min(64 - w_home, x_home), 22), home_str, font=score_font, fill=color_home)
+        else:
+            away_score_str = str(away_score_val)
+            home_score_str = str(home_score_val)
+            bbox_away = draw.textbbox((0, 0), away_score_str, font=score_font)
+            w_away = bbox_away[2] - bbox_away[0]
+            bbox_home = draw.textbbox((0, 0), home_score_str, font=score_font)
+            w_home = bbox_home[2] - bbox_home[0]
+            bbox_dash = draw.textbbox((0, 0), "-", font=score_font)
+            w_dash = bbox_dash[2] - bbox_dash[0]
 
-        draw.text((x_away, 22), away_score_str, font=score_font, fill=color_away)
-        draw.text((x_dash, 22), "-", font=score_font, fill=COLOURS['grey_light'])
-        draw.text((x_home, 22), home_score_str, font=score_font, fill=color_home)
+            x_dash = 32 - w_dash // 2
+            x_away = x_dash - 2 - w_away
+            x_home = x_dash + w_dash + 2
+
+            draw.text((x_away, 22), away_score_str, font=score_font, fill=color_away)
+            draw.text((x_dash, 22), "-", font=score_font, fill=COLOURS['grey_light'])
+            draw.text((x_home, 22), home_score_str, font=score_font, fill=color_home)
 
         if status_code == 2:
             # Left Corner Indicator: Away timeouts
@@ -337,8 +353,10 @@ if __name__ == '__main__':
         'period_str': '3RD',
         'away_timeouts': 2,
         'home_timeouts': 4,
-        'away_fouls': 3,
-        'home_fouls': 5
+        'away_fouls': 0,
+        'home_fouls': 0,
+        'leader_text': 'TATUM 32P',
+        'home_win_pct': 42.5
     }
 
     test_live_nfl = {
@@ -390,8 +408,20 @@ if __name__ == '__main__':
         'odds_str': 'GSW -4.5 O/U 228.5'
     }
 
-    build_mock_image(test_live_nba, clock_seconds_override=624, rotation_mode=1).save('test_layout_nba_live_fouls.png')
+    test_final_mlb = {
+        'league': 'MLB',
+        'away_abrv': 'LAD',
+        'home_abrv': 'SF',
+        'away_score': 7,
+        'home_score': 4,
+        'status_code': 3,
+        'ot_str': '',
+        'decision_text': 'W:GLASNOW'
+    }
+
+    build_mock_image(test_live_nba, clock_seconds_override=624, rotation_mode=0).save('test_layout_nba_live_leader.png')
     build_mock_image(test_final_nba, rotation_mode=0).save('test_layout_nba_final_winner.png')
+    build_mock_image(test_final_mlb, rotation_mode=0).save('test_layout_mlb_final.png')
     build_mock_image(test_sched_nba, rotation_mode=0).save('test_layout_nba_sched_spread.png')
     build_mock_image(test_sched_nba, rotation_mode=1).save('test_layout_nba_sched_ou.png')
     build_mock_image(test_live_nfl, clock_seconds_override=135, rotation_mode=1).save('test_layout_nfl_live_downdist.png')
