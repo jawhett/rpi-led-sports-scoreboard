@@ -195,7 +195,7 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0):
             draw.point((32, 21), fill=COLOURS['black'])
 
     elif status_code == 3:  # Completed - Spacious Stadium Layout with Names & Scores
-        # Center Channel: OT / Series context only when applicable (no FINAL or team WIN clutter)
+        # Center Channel: OT / Series context if applicable on row 8
         ot_str = game.get('ot_str', '')
         series_text = game.get('series_text', '')
 
@@ -209,7 +209,11 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0):
             w_c = get_text_3x5_width(center_text)
             draw_text_3x5(draw, 32 - w_c // 2, 8, center_text, COLOURS['yellow_bright'])
 
-    # --- BOTTOM ROWS (rows 22..31, cols 0..63): TEAM NAMES, SCORES & SMALL DASH ---
+        # "VS" in center channel aligned with bottom of logos at y=15
+        w_vs = get_text_3x5_width("VS")
+        draw_text_3x5(draw, 32 - w_vs // 2, 15, "VS", COLOURS['yellow'])
+
+    # --- BOTTOM ROWS (rows 22..31, cols 0..63): TEAM NAMES & SCORES ---
     if status_code in (2, 3):  # Live or Final
         away_score_val = game.get('away_score', 0)
         home_score_val = game.get('home_score', 0)
@@ -228,22 +232,11 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0):
             is_3digit = (away_score_val >= 100 or home_score_val >= 100)
 
             if is_3digit:
-                w_a_code = get_text_3x5_width(game['away_abrv'])
-                bbox_a_score = draw.textbbox((0, 0), str(away_score_val), font=score_font)
-                w_a_score = bbox_a_score[2] - bbox_a_score[0]
-                
-                # Away: Code in 3x5, Score in sm_bold
                 draw_text_3x5(draw, 0, 24, game['away_abrv'], color_away)
-                draw.text((w_a_code + 2, 22), str(away_score_val), font=score_font, fill=color_away)
+                draw.text((12, 22), str(away_score_val), font=score_font, fill=color_away)
 
-                w_h_code = get_text_3x5_width(game['home_abrv'])
-                bbox_h_score = draw.textbbox((0, 0), str(home_score_val), font=score_font)
-                w_h_score = bbox_h_score[2] - bbox_h_score[0]
-
-                # Home: Score in sm_bold, Code in 3x5
-                x_h_start = 64 - (w_h_score + 2 + w_h_code)
-                draw.text((x_h_start, 22), str(home_score_val), font=score_font, fill=color_home)
-                draw_text_3x5(draw, x_h_start + w_h_score + 2, 24, game['home_abrv'], color_home)
+                draw.text((37, 22), str(home_score_val), font=score_font, fill=color_home)
+                draw_text_3x5(draw, 54, 24, game['home_abrv'], color_home)
             else:
                 away_str = f"{game['away_abrv']} {away_score_val}"
                 home_str = f"{home_score_val} {game['home_abrv']}"
@@ -258,10 +251,6 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0):
 
                 draw.text((x_away, 22), away_str, font=score_font, fill=color_away)
                 draw.text((x_home, 22), home_str, font=score_font, fill=color_home)
-
-            # "VS" centered at x=32, y=24 in yellow FONT_3X5 in line with team names and scores
-            w_vs = get_text_3x5_width("VS")
-            draw_text_3x5(draw, 32 - w_vs // 2, 24, "VS", COLOURS['yellow'])
         else:
             score_font = FONTS['sm_bold']
             away_score_str = str(away_score_val)
