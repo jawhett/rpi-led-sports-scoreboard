@@ -112,6 +112,7 @@ def get_games(date):
                     home_win_pct = None
                     is_red_zone = False
                     yard_line = None
+                    distance = None
                 
                     if 'situation' in comp:
                         sit = comp['situation']
