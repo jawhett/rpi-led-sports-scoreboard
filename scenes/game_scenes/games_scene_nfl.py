@@ -258,16 +258,6 @@ class NFLGamesScene(GamesScene):
 
         return "", self.COLOURS['white']
 
-    def draw_complete_extras(self, game, rotation_mode):
-        for i in range(3):
-            color = self.COLOURS['yellow_bright'] if i < game.get('away_timeouts', 0) else self.COLOURS['grey_dark']
-            self.draw['full'].point((1 + i * 3, 28), fill=color)
-            self.draw['full'].point((2 + i * 3, 28), fill=color)
-        for i in range(3):
-            color = self.COLOURS['yellow_bright'] if i < game.get('home_timeouts', 0) else self.COLOURS['grey_dark']
-            self.draw['full'].point((53 + i * 3, 28), fill=color)
-            self.draw['full'].point((54 + i * 3, 28), fill=color)
-
     def get_final_period_str(self, game):
         if game.get('period_num', 4) == 5:
             return "OT"

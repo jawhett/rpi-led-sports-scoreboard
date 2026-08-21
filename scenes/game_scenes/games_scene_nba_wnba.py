@@ -261,14 +261,6 @@ class NBAWNBAGamesScene(GamesScene):
 
         return "", self.COLOURS['white']
 
-    def draw_complete_extras(self, game, rotation_mode):
-        for i in range(7):
-            color = self.COLOURS['yellow_bright'] if i < game.get('away_timeouts', 0) else self.COLOURS['grey_dark']
-            self.draw['full'].point((0 + i * 2, 28), fill=color)
-        for i in range(7):
-            color = self.COLOURS['yellow_bright'] if i < game.get('home_timeouts', 0) else self.COLOURS['grey_dark']
-            self.draw['full'].point((50 + i * 2, 28), fill=color)
-
     def get_final_period_str(self, game):
         if game.get('period_num', 4) == 5:
             return "OT"
