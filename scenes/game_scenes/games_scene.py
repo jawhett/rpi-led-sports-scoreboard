@@ -252,35 +252,25 @@ class GamesScene(Scene):
         elif home_score > away_score:
             self.draw['full'].rectangle([(44, 21), (59, 21)], fill=self.COLOURS['yellow_bright'])
 
-        # Center Status (cols 22..41, rows 0..21): OT / Margin, Total Points, Winner Tag
+        # Center Channel (cols 22..41, rows 0..21): Single clean stat with spacious margins
         period_str = ""
         if hasattr(self, 'get_final_period_str'):
             period_str = self.get_final_period_str(game)
 
+        center_text = ""
+        center_color = self.COLOURS['white']
         if period_str and period_str not in ("", "Std", "None"):
-            top_str = period_str if "OT" in period_str else f"F/{period_str}"
-            w_top = get_text_3x5_width(top_str)
-            draw_text_3x5(self.draw['full'], 32 - w_top // 2, 2, top_str, self.COLOURS['yellow_bright'])
+            center_text = period_str if "OT" in period_str else f"F/{period_str}"
+            center_color = self.COLOURS['yellow_bright']
+        elif game.get('series_text'):
+            center_text = game['series_text']
+            center_color = self.COLOURS['yellow_bright']
         else:
-            win_abrv = game.get('away_abrv', '') if away_score > home_score else game.get('home_abrv', '')
-            diff = abs(away_score - home_score)
-            margin_str = f"+{diff} {win_abrv}" if diff > 0 else "FINAL"
-            w_m = get_text_3x5_width(margin_str)
-            draw_text_3x5(self.draw['full'], 32 - w_m // 2, 2, margin_str, self.COLOURS['yellow_bright'])
+            center_text = f"TOT {away_score + home_score}"
+            center_color = self.COLOURS['white']
 
-        # Total points on row 8
-        tot = away_score + home_score
-        tot_str = f"TOT {tot}"
-        w_t = get_text_3x5_width(tot_str)
-        draw_text_3x5(self.draw['full'], 32 - w_t // 2, 8, tot_str, self.COLOURS['white'])
-
-        # Margin / Winner Tag on row 14
-        sub_text = game.get('series_text')
-        if not sub_text:
-            winner_abrv = game.get('away_abrv', '') if away_score > home_score else game.get('home_abrv', '')
-            sub_text = f"{winner_abrv} WIN" if away_score != home_score else "TIED"
-        w_sub = get_text_3x5_width(sub_text)
-        draw_text_3x5(self.draw['full'], max(22, min(32 - w_sub // 2, 41 - w_sub)), 14, sub_text, self.COLOURS['green_bright'])
+        w_c = get_text_3x5_width(center_text)
+        draw_text_3x5(self.draw['full'], 32 - w_c // 2, 8, center_text, center_color)
 
         # 2. BOTTOM 10 PIXELS (rows 22..31, cols 0..63): ENLARGED FINAL SCORES
         color_away = data_utils.TEAM_COLORS.get(game.get('away_abrv'), self.COLOURS['white'])
