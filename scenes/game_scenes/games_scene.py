@@ -252,25 +252,21 @@ class GamesScene(Scene):
         elif home_score > away_score:
             self.draw['full'].rectangle([(44, 21), (59, 21)], fill=self.COLOURS['yellow_bright'])
 
-        # Center Channel (cols 22..41, rows 0..21): Single clean stat with spacious margins
+        # Center Channel (cols 22..41, rows 0..21): OT / Series context only when applicable
         period_str = ""
         if hasattr(self, 'get_final_period_str'):
             period_str = self.get_final_period_str(game)
 
         center_text = ""
-        center_color = self.COLOURS['white']
+        center_color = self.COLOURS['yellow_bright']
         if period_str and period_str not in ("", "Std", "None"):
             center_text = period_str if "OT" in period_str else f"F/{period_str}"
-            center_color = self.COLOURS['yellow_bright']
         elif game.get('series_text'):
             center_text = game['series_text']
-            center_color = self.COLOURS['yellow_bright']
-        else:
-            center_text = f"TOT {away_score + home_score}"
-            center_color = self.COLOURS['white']
 
-        w_c = get_text_3x5_width(center_text)
-        draw_text_3x5(self.draw['full'], 32 - w_c // 2, 8, center_text, center_color)
+        if center_text:
+            w_c = get_text_3x5_width(center_text)
+            draw_text_3x5(self.draw['full'], 32 - w_c // 2, 8, center_text, center_color)
 
         # 2. BOTTOM 10 PIXELS (rows 22..31, cols 0..63): ENLARGED FINAL SCORES
         color_away = data_utils.TEAM_COLORS.get(game.get('away_abrv'), self.COLOURS['white'])

@@ -166,28 +166,23 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0):
         # Dimmed Red Border signifying Final Status
         draw.rectangle([(0, 0), (63, 31)], outline=COLOURS.get('red_dim', (80, 15, 15)))
 
-        # Center Channel: Single clean piece of post-game context (OT, Series, or Total)
+        # Center Channel: OT or Series context only
         ot_str = game.get('ot_str', '')
         series_text = game.get('series_text', '')
-        away_s = game.get('away_score', 0)
-        home_s = game.get('home_score', 0)
 
         center_text = ""
-        center_color = COLOURS['white']
         if ot_str and ot_str not in ("Std", "None", ""):
             center_text = ot_str if 'OT' in ot_str else f"{ot_str}OT"
-            center_color = COLOURS['yellow_bright']
         elif series_text:
             center_text = series_text
-            center_color = COLOURS['yellow_bright']
-        else:
-            center_text = f"TOT {away_s + home_s}"
-            center_color = COLOURS['white']
 
-        w_c = get_text_3x5_width(center_text)
-        draw_text_3x5(draw, 32 - w_c // 2, 8, center_text, center_color)
+        if center_text:
+            w_c = get_text_3x5_width(center_text)
+            draw_text_3x5(draw, 32 - w_c // 2, 8, center_text, COLOURS['yellow_bright'])
 
         # Winner under-glow on row 21
+        away_s = game.get('away_score', 0)
+        home_s = game.get('home_score', 0)
         if away_s > home_s:
             draw.rectangle([(4, 21), (19, 21)], fill=COLOURS['yellow_bright'])
         elif home_s > away_s:
