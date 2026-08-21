@@ -404,6 +404,10 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0):
         x_home = 53 - w_home // 2
         draw.text((min(64 - w_home, x_home), 22), home_abrv, font=score_font, fill=color_home)
 
+        # Team accent underlines on row 31
+        draw.line([(max(0, x_away), 31), (max(0, x_away) + w_away - 1, 31)], fill=color_away)
+        draw.line([(min(64 - w_home, x_home), 31), (min(64 - w_home, x_home) + w_home - 1, 31)], fill=color_home)
+
     return img
 
 

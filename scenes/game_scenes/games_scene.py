@@ -217,6 +217,10 @@ class GamesScene(Scene):
         x_home = 53 - w_home // 2
         self.draw['full'].text((min(64 - w_home, x_home), 22), home_abrv, font=score_font, fill=color_home)
 
+        # Team accent underlines on row 31
+        self.draw['full'].line([(max(0, x_away), 31), (max(0, x_away) + w_away - 1, 31)], fill=color_away)
+        self.draw['full'].line([(min(64 - w_home, x_home), 31), (min(64 - w_home, x_home) + w_home - 1, 31)], fill=color_home)
+
 
     def build_game_in_progress_image(self, game):
         """ Builds image for when the game is in progress.
