@@ -259,8 +259,9 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0):
                 draw.text((x_away, 22), away_str, font=score_font, fill=color_away)
                 draw.text((x_home, 22), home_str, font=score_font, fill=color_home)
 
-            # Small, crisp 2px dash at x=31..32, y=26
-            draw.line([(31, 26), (32, 26)], fill=COLOURS['grey_light'])
+            # "VS" centered at x=32, y=24 in yellow FONT_3X5 in line with team names and scores
+            w_vs = get_text_3x5_width("VS")
+            draw_text_3x5(draw, 32 - w_vs // 2, 24, "VS", COLOURS['yellow'])
         else:
             score_font = FONTS['sm_bold']
             away_score_str = str(away_score_val)

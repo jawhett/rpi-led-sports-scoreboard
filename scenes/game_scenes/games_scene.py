@@ -290,33 +290,30 @@ class GamesScene(Scene):
         is_3digit = (away_score >= 100 or home_score >= 100)
 
         if is_3digit:
-            w_a_code = get_text_3x5_width(game.get('away_abrv', ''))
             draw_text_3x5(self.draw['full'], 0, 24, game.get('away_abrv', ''), color_away)
-            self.draw['full'].text((w_a_code + 2, 22), str(away_score), font=score_font, fill=color_away)
+            self.draw['full'].text((12, 22), str(away_score), font=score_font, fill=color_away)
 
-            w_h_code = get_text_3x5_width(game.get('home_abrv', ''))
-            bbox_h_score = self.draw['full'].textbbox((0, 0), str(home_score), font=score_font)
-            w_h_score = bbox_h_score[2] - bbox_h_score[0]
-            x_h_start = 64 - (w_h_score + 2 + w_h_code)
-            self.draw['full'].text((x_h_start, 22), str(home_score), font=score_font, fill=color_home)
-            draw_text_3x5(self.draw['full'], x_h_start + w_h_score + 2, 24, game.get('home_abrv', ''), color_home)
+            # "VS" in center bottom in line with team codes
+            draw_text_3x5(self.draw['full'], 29, 24, "VS", self.COLOURS['yellow'])
+
+            self.draw['full'].text((37, 22), str(home_score), font=score_font, fill=color_home)
+            draw_text_3x5(self.draw['full'], 54, 24, game.get('home_abrv', ''), color_home)
         else:
             away_str = f"{game.get('away_abrv', '')} {away_score}"
             home_str = f"{home_score} {game.get('home_abrv', '')}"
 
             bbox_away = self.draw['full'].textbbox((0, 0), away_str, font=score_font)
             w_away = bbox_away[2] - bbox_away[0]
-            x_away = max(0, min(28 - w_away, 11 - w_away // 2))
+            x_away = max(0, min(26 - w_away, 11 - w_away // 2))
 
             bbox_home = self.draw['full'].textbbox((0, 0), home_str, font=score_font)
             w_home = bbox_home[2] - bbox_home[0]
-            x_home = max(36, min(64 - w_home, 53 - w_home // 2))
+            x_home = max(38, min(64 - w_home, 53 - w_home // 2))
 
             self.draw['full'].text((x_away, 22), away_str, font=score_font, fill=color_away)
+            w_vs = get_text_3x5_width("VS")
+            draw_text_3x5(self.draw['full'], 32 - w_vs // 2, 24, "VS", self.COLOURS['yellow'])
             self.draw['full'].text((x_home, 22), home_str, font=score_font, fill=color_home)
-
-        # Small, crisp 2px dash at x=31..32, y=26
-        self.draw['full'].line([(31, 26), (32, 26)], fill=self.COLOURS['grey_light'])
 
         if hasattr(self, 'draw_complete_extras'):
             self.draw_complete_extras(game, rotation_mode)
