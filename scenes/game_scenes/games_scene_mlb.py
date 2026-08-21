@@ -241,21 +241,86 @@ class MLBGamesScene(GamesScene):
             except Exception as e:
                 pass
 
-        # Center Channel (cols 22..41, rows 0..21): Inning & Outs & Bases
-        self.add_playing_period_to_image(game)
+        # Center Channel (cols 22..41, rows 0..21): Inning & Graphical Diamond & Outs
+        inning_num = game.get('inning_num', 1)
+        inning_state = game.get('inning_state', 'Top')
+        
+        # 1. Row 1: Inning Arrow & Number
+        if inning_state in ['Top', 'Start']:
+            num_str = str(inning_num)
+            w_num = get_text_3x5_width(num_str)
+            total_w = 3 + 1 + w_num
+            x_start = 32 - total_w // 2
+            # 3x5 Up Arrow (▲)
+            self.draw['full'].point((x_start + 1, 1), fill=self.COLOURS['yellow_bright'])
+            self.draw['full'].line([(x_start, 2), (x_start + 2, 2)], fill=self.COLOURS['yellow_bright'])
+            self.draw['full'].point((x_start + 1, 3), fill=self.COLOURS['yellow_bright'])
+            self.draw['full'].point((x_start + 1, 4), fill=self.COLOURS['yellow_bright'])
+            self.draw['full'].point((x_start + 1, 5), fill=self.COLOURS['yellow_bright'])
+            draw_text_3x5(self.draw['full'], x_start + 4, 1, num_str, self.COLOURS['white'])
+        elif inning_state == 'Bottom':
+            num_str = str(inning_num)
+            w_num = get_text_3x5_width(num_str)
+            total_w = 3 + 1 + w_num
+            x_start = 32 - total_w // 2
+            # 3x5 Down Arrow (▼)
+            self.draw['full'].point((x_start + 1, 1), fill=self.COLOURS['yellow_bright'])
+            self.draw['full'].point((x_start + 1, 2), fill=self.COLOURS['yellow_bright'])
+            self.draw['full'].point((x_start + 1, 3), fill=self.COLOURS['yellow_bright'])
+            self.draw['full'].line([(x_start, 4), (x_start + 2, 4)], fill=self.COLOURS['yellow_bright'])
+            self.draw['full'].point((x_start + 1, 5), fill=self.COLOURS['yellow_bright'])
+            draw_text_3x5(self.draw['full'], x_start + 4, 1, num_str, self.COLOURS['white'])
+        else:
+            mid_str = "MID" if inning_state == 'Middle' else ("END" if inning_state == 'End' else str(inning_state)[:3].upper())
+            lbl = f"{mid_str} {inning_num}"
+            w_lbl = get_text_3x5_width(lbl)
+            draw_text_3x5(self.draw['full'], 32 - w_lbl // 2, 1, lbl, self.COLOURS['yellow_bright'])
 
-        outs_num = game.get('outs', 0)
-        outs_text = f"O:{outs_num}"
-        w_o = get_text_3x5_width(outs_text)
-        draw_text_3x5(self.draw['full'], 32 - w_o // 2, 8, outs_text, self.COLOURS['white'])
+        # 2. Rows 7..15: Graphical Baseball Diamond
+        dim_line = (60, 60, 60)
+        self.draw['full'].line([(31, 9), (27, 12)], fill=dim_line)
+        self.draw['full'].line([(32, 9), (36, 12)], fill=dim_line)
+        self.draw['full'].line([(27, 13), (31, 15)], fill=dim_line)
+        self.draw['full'].line([(36, 13), (32, 15)], fill=dim_line)
 
-        runners = []
-        if game.get('runner_on_first'): runners.append("1")
-        if game.get('runner_on_second'): runners.append("2")
-        if game.get('runner_on_third'): runners.append("3")
-        bases_str = "LOD" if len(runners) == 3 else (",".join(runners) if runners else "EMP")
-        w_b = get_text_3x5_width(bases_str)
-        draw_text_3x5(self.draw['full'], 32 - w_b // 2, 14, bases_str, self.COLOURS['yellow_bright'])
+        # 2nd Base (Top Apex): (31..32, 8..9)
+        color_2nd = self.COLOURS['yellow_bright'] if game.get('runner_on_second') else (75, 75, 75)
+        self.draw['full'].rectangle([(31, 8), (32, 9)], fill=color_2nd)
+
+        # 3rd Base (Left Apex): (26..27, 12..13)
+        color_3rd = self.COLOURS['yellow_bright'] if game.get('runner_on_third') else (75, 75, 75)
+        self.draw['full'].rectangle([(26, 12), (27, 13)], fill=color_3rd)
+
+        # 1st Base (Right Apex): (36..37, 12..13)
+        color_1st = self.COLOURS['yellow_bright'] if game.get('runner_on_first') else (75, 75, 75)
+        self.draw['full'].rectangle([(36, 12), (37, 13)], fill=color_1st)
+
+        # 3. Row 16..18: Out Indicator Dots ('O' + 2 pips)
+        outs = game.get('outs', 0)
+        out1_color = self.COLOURS['red_bright'] if outs >= 1 else (55, 55, 55)
+        out2_color = self.COLOURS['red_bright'] if outs >= 2 else (55, 55, 55)
+        
+        draw_text_3x5(self.draw['full'], 25, 16, 'O', self.COLOURS['grey_light'])
+        self.draw['full'].rectangle([(30, 17), (31, 18)], fill=out1_color)
+        self.draw['full'].rectangle([(34, 17), (35, 18)], fill=out2_color)
+
+        # Batting team possession under-glow on row 21
+        if inning_state in ['Top', 'Start']:
+            self.draw['full'].rectangle([(6, 21), (16, 21)], fill=self.COLOURS['yellow_bright'])
+        elif inning_state == 'Bottom':
+            self.draw['full'].rectangle([(47, 21), (57, 21)], fill=self.COLOURS['yellow_bright'])
+
+        # Win Probability / Momentum Micro-Bar (cols 22..41, row 21)
+        if game.get('home_win_pct') is not None:
+            h_pct = game['home_win_pct']
+            away_px = int(round(20 * (100 - h_pct) / 100.0))
+            away_color = data_utils.get_team_color(game.get('away_abrv'), self.COLOURS['white'])
+            home_color = data_utils.get_team_color(game.get('home_abrv'), self.COLOURS['white'])
+            if away_px > 0:
+                self.draw['full'].line([(22, 21), (22 + away_px - 1, 21)], fill=away_color)
+            if away_px < 20:
+                self.draw['full'].line([(22 + away_px, 21), (41, 21)], fill=home_color)
+            self.draw['full'].point((32, 21), fill=self.COLOURS['black'])
 
         # 2. BOTTOM 10 PIXELS (rows 22..31, cols 0..63): ENLARGED SCORES
         away_score_str = str(game.get('away_score', 0))
@@ -288,70 +353,5 @@ class MLBGamesScene(GamesScene):
 
 
 
-    def add_playing_period_to_image(self, game):
-        col_offset = 28 if game['inning_num'] <= 9 else 25
 
-        if game['inning_state'] in ['Top', 'Start']:
-            self.draw['full'].line(((col_offset, 10), (col_offset, 15)), fill=self.COLOURS['white'])
-            self.draw['full'].line(((col_offset, 10), (col_offset-2, 12)), fill=self.COLOURS['white'])
-            self.draw['full'].line(((col_offset, 10), (col_offset+2, 12)), fill=self.COLOURS['white'])
-        elif game['inning_state'] == 'Bottom':
-            self.draw['full'].line(((col_offset, 15), (col_offset, 10)), fill=self.COLOURS['white'])
-            self.draw['full'].line(((col_offset, 15), (col_offset-2, 13)), fill=self.COLOURS['white'])
-            self.draw['full'].line(((col_offset, 15), (col_offset+2, 13)), fill=self.COLOURS['white'])
-        elif game['inning_state'] == 'End':
-            draw_text_3x5(self.draw['full'], col_offset-1, 10, 'E', self.COLOURS['white'])
-        elif game['inning_state'] == 'Middle':
-            self.draw['full'].line(((col_offset-2, 12), (col_offset+2, 12)), fill=self.COLOURS['white'])
-
-        draw_text_3x5(self.draw['full'], col_offset+5, 10, str(game['inning_num']), self.COLOURS['white'])
-
-
-    def add_outs_to_image(self, game):
-        # We need to shift everything right by 22 since it used to be drawn on center
-        x = 22
-
-        # We'll use the same y coordinates as before
-        # Draw grey boxes representing potential outs.
-        self.draw['full'].rectangle(((2+x, 10), (4+x, 11)), fill=self.COLOURS['grey_light'])
-        self.draw['full'].rectangle(((2+x, 13), (4+x, 14)), fill=self.COLOURS['grey_light'])
-        self.draw['full'].rectangle(((2+x, 16), (4+x, 17)), fill=self.COLOURS['grey_light'])
-
-        if game['outs'] >= 1:
-            self.draw['full'].rectangle(((2+x, 10), (4+x, 11)), fill=self.COLOURS['yellow'])
-        if game['outs'] >= 2:
-            self.draw['full'].rectangle(((2+x, 13), (4+x, 14)), fill=self.COLOURS['yellow'])
-        if game['outs'] == 3:
-            self.draw['full'].rectangle(((2+x, 16), (4+x, 17)), fill=self.COLOURS['yellow'])
-
-
-    def add_runners_on_base_to_image(self, game):
-        # We need to shift everything right by 22 since it used to be drawn on center
-        x = 22
-        
-        # 1st base.
-        self.draw['full'].line(((15+x, 13), (17+x, 15)), fill=self.COLOURS['grey_light'])
-        self.draw['full'].line(((17+x, 15), (15+x, 17)), fill=self.COLOURS['grey_light'])
-        self.draw['full'].line(((15+x, 17), (13+x, 15)), fill=self.COLOURS['grey_light'])
-        self.draw['full'].line(((13+x, 15), (15+x, 13)), fill=self.COLOURS['grey_light'])
-        # 2nd base.
-        self.draw['full'].line(((12+x, 10), (14+x, 12)), fill=self.COLOURS['grey_light'])
-        self.draw['full'].line(((14+x, 12), (12+x, 14)), fill=self.COLOURS['grey_light'])
-        self.draw['full'].line(((12+x, 14), (10+x, 12)), fill=self.COLOURS['grey_light'])
-        self.draw['full'].line(((10+x, 12), (12+x, 10)), fill=self.COLOURS['grey_light'])
-        # 3rd base.
-        self.draw['full'].line(((9+x, 13), (11+x, 15)), fill=self.COLOURS['grey_light'])
-        self.draw['full'].line(((11+x, 15), (9+x, 17)), fill=self.COLOURS['grey_light'])
-        self.draw['full'].line(((9+x, 17), (7+x, 15)), fill=self.COLOURS['grey_light'])
-        self.draw['full'].line(((7+x, 15), (9+x, 13)), fill=self.COLOURS['grey_light'])
-
-        if game['runner_on_first']:
-            self.draw['full'].line(((15+x, 14), (15+x, 16)), fill=self.COLOURS['yellow'])
-            self.draw['full'].line(((14+x, 15), (16+x, 15)), fill=self.COLOURS['yellow'])
-        if game['runner_on_second']:
-            self.draw['full'].line(((12+x, 11), (12+x, 13)), fill=self.COLOURS['yellow'])
-            self.draw['full'].line(((11+x, 12), (13+x, 12)), fill=self.COLOURS['yellow'])
-        if game['runner_on_third']:
-            self.draw['full'].line(((9+x, 14), (9+x, 16)), fill=self.COLOURS['yellow'])
-            self.draw['full'].line(((8+x, 15), (10+x, 15)), fill=self.COLOURS['yellow'])
 

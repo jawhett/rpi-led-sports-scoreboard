@@ -193,12 +193,96 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0):
         if clock_str:
             w_c = get_text_3x5_width(clock_str)
             draw_text_3x5(draw, 32 - w_c // 2, 7, clock_str, COLOURS['white'])
-        if info_text:
+        elif league == 'MLB' and status_code == 2:
+            # 1. Top row (y=1): Inning Arrow & Number
+            inning_num = game.get('inning_num', 1)
+            inning_state = game.get('inning_state', 'Top')
+            
+            if inning_state in ['Top', 'Start']:
+                # Up arrow (3x5) + space + number
+                num_str = str(inning_num)
+                w_num = get_text_3x5_width(num_str)
+                total_w = 3 + 1 + w_num  # 3px arrow + 1px gap + number width
+                x_start = 32 - total_w // 2
+                # Draw 3x5 Up Arrow: apex at (x+1, 1), body on y=2..5
+                draw.point((x_start + 1, 1), fill=COLOURS['yellow_bright'])
+                draw.line([(x_start, 2), (x_start + 2, 2)], fill=COLOURS['yellow_bright'])
+                draw.point((x_start + 1, 3), fill=COLOURS['yellow_bright'])
+                draw.point((x_start + 1, 4), fill=COLOURS['yellow_bright'])
+                draw.point((x_start + 1, 5), fill=COLOURS['yellow_bright'])
+                draw_text_3x5(draw, x_start + 4, 1, num_str, COLOURS['white'])
+            elif inning_state == 'Bottom':
+                # Down arrow (3x5) + space + number
+                num_str = str(inning_num)
+                w_num = get_text_3x5_width(num_str)
+                total_w = 3 + 1 + w_num
+                x_start = 32 - total_w // 2
+                # Draw 3x5 Down Arrow: stem on y=1..3, wings at y=4, apex at y=5
+                draw.point((x_start + 1, 1), fill=COLOURS['yellow_bright'])
+                draw.point((x_start + 1, 2), fill=COLOURS['yellow_bright'])
+                draw.point((x_start + 1, 3), fill=COLOURS['yellow_bright'])
+                draw.line([(x_start, 4), (x_start + 2, 4)], fill=COLOURS['yellow_bright'])
+                draw.point((x_start + 1, 5), fill=COLOURS['yellow_bright'])
+                draw_text_3x5(draw, x_start + 4, 1, num_str, COLOURS['white'])
+            else:
+                mid_str = "MID" if inning_state == 'Middle' else ("END" if inning_state == 'End' else str(inning_state)[:3].upper())
+                lbl = f"{mid_str} {inning_num}"
+                w_lbl = get_text_3x5_width(lbl)
+                draw_text_3x5(draw, 32 - w_lbl // 2, 1, lbl, COLOURS['yellow_bright'])
+
+            # 2. Middle (rows 7..14): Graphical Baseball Diamond
+            # Basepaths (1px lines connecting bases in dim grey)
+            dim_line = (60, 60, 60)
+            draw.line([(31, 9), (27, 12)], fill=dim_line)
+            draw.line([(32, 9), (36, 12)], fill=dim_line)
+            draw.line([(27, 13), (31, 15)], fill=dim_line)
+            draw.line([(36, 13), (32, 15)], fill=dim_line)
+
+            # 2nd Base (Top Apex): (31..32, 8..9)
+            color_2nd = COLOURS['yellow_bright'] if game.get('runner_on_second') else (75, 75, 75)
+            draw.rectangle([(31, 8), (32, 9)], fill=color_2nd)
+
+            # 3rd Base (Left Apex): (26..27, 12..13)
+            color_3rd = COLOURS['yellow_bright'] if game.get('runner_on_third') else (75, 75, 75)
+            draw.rectangle([(26, 12), (27, 13)], fill=color_3rd)
+
+            # 1st Base (Right Apex): (36..37, 12..13)
+            color_1st = COLOURS['yellow_bright'] if game.get('runner_on_first') else (75, 75, 75)
+            draw.rectangle([(36, 12), (37, 13)], fill=color_1st)
+
+            # 3. Row 17: Out Indicator Dots (2 Out Pips)
+            outs = game.get('outs', 0)
+            out1_color = COLOURS['red_bright'] if outs >= 1 else (55, 55, 55)
+            out2_color = COLOURS['red_bright'] if outs >= 2 else (55, 55, 55)
+            
+            # Out label & 2 dots: 'O' + dot1 + dot2
+            draw_text_3x5(draw, 25, 16, 'O', COLOURS['grey_light'])
+            draw.rectangle([(30, 17), (31, 18)], fill=out1_color)
+            draw.rectangle([(34, 17), (35, 18)], fill=out2_color)
+
+            # Batting team possession under-glow on row 21
+            if inning_state in ['Top', 'Start']:
+                draw.rectangle([(6, 21), (16, 21)], fill=COLOURS['yellow_bright'])
+            elif inning_state == 'Bottom':
+                draw.rectangle([(47, 21), (57, 21)], fill=COLOURS['yellow_bright'])
+
+            # Win Probability / Momentum Micro-Bar (cols 22..41, row 21)
+            if game.get('home_win_pct') is not None:
+                h_pct = game['home_win_pct']
+                away_px = int(round(20 * (100 - h_pct) / 100.0))
+                away_color = TEAM_COLORS.get(game.get('away_abrv'), COLOURS['white'])
+                home_color = TEAM_COLORS.get(game.get('home_abrv'), COLOURS['white'])
+                if away_px > 0:
+                    draw.line([(22, 21), (22 + away_px - 1, 21)], fill=away_color)
+                if away_px < 20:
+                    draw.line([(22 + away_px, 21), (41, 21)], fill=home_color)
+                draw.point((32, 21), fill=COLOURS['black'])
+        elif info_text:
             w_i = get_text_3x5_width(info_text)
             draw_text_3x5(draw, max(22, min(32 - w_i // 2, 41 - w_i)), 14, info_text, info_color)
 
         # Win Probability / Momentum Micro-Bar (cols 22..41, row 21)
-        if game.get('home_win_pct') is not None:
+        if game.get('home_win_pct') is not None and league != 'MLB':
             h_pct = game['home_win_pct']
             away_px = int(round(20 * (100 - h_pct) / 100.0))
             away_color = TEAM_COLORS.get(game.get('away_abrv'), COLOURS['white'])
@@ -492,7 +576,40 @@ if __name__ == '__main__':
     test_live_nba_fouls = dict(test_live_nba, away_fouls=3, home_fouls=5)
     build_mock_image(test_live_nba_fouls, clock_seconds_override=624, rotation_mode=2).save('test_layout_nba_live_fouls.png')
 
-    build_mock_image(test_final_nba, rotation_mode=0).save('test_layout_nba_final_winner.png')
+    test_live_mlb_1st_3rd = {
+        'league': 'MLB',
+        'away_abrv': 'LAD',
+        'home_abrv': 'SF',
+        'away_score': 4,
+        'home_score': 3,
+        'status_code': 2,
+        'inning_num': 7,
+        'inning_state': 'Top',
+        'outs': 1,
+        'runner_on_first': True,
+        'runner_on_second': False,
+        'runner_on_third': True,
+        'home_win_pct': 48.0
+    }
+    build_mock_image(test_live_mlb_1st_3rd).save('test_layout_mlb_live_1st_3rd.png')
+
+    test_live_mlb_loaded = {
+        'league': 'MLB',
+        'away_abrv': 'NYY',
+        'home_abrv': 'BOS',
+        'away_score': 5,
+        'home_score': 5,
+        'status_code': 2,
+        'inning_num': 9,
+        'inning_state': 'Bottom',
+        'outs': 2,
+        'runner_on_first': True,
+        'runner_on_second': True,
+        'runner_on_third': True,
+        'home_win_pct': 65.0
+    }
+    build_mock_image(test_live_mlb_loaded).save('test_layout_mlb_live_loaded.png')
+
     build_mock_image(test_final_mlb, rotation_mode=0).save('test_layout_mlb_final.png')
     build_mock_image(test_sched_nba, rotation_mode=0).save('test_layout_nba_sched_spread.png')
     build_mock_image(test_sched_nba, rotation_mode=1).save('test_layout_nba_sched_ou.png')
