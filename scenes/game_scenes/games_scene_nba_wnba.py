@@ -359,7 +359,8 @@ class NBAWNBAGamesScene(GamesScene):
 
         if period_str:
             w_p = get_text_3x5_width(period_str)
-            draw_text_3x5(self.draw['full'], 32 - w_p // 2, 1, period_str, self.COLOURS['yellow'])
+            period_color = self.COLOURS['red_bright'] if "OT" in period_str else self.COLOURS['yellow']
+            draw_text_3x5(self.draw['full'], 32 - w_p // 2, 1, period_str, period_color)
         if clock_str:
             w_c = get_text_3x5_width(clock_str)
             draw_text_3x5(self.draw['full'], 32 - w_c // 2, 7, clock_str, self.COLOURS['white'])

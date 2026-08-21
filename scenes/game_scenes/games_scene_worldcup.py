@@ -284,7 +284,7 @@ class WorldCupGamesScene(GamesScene):
         away_score = game['away_score']
         w = len(str(away_score)) * 8
         x = 12 - w // 2
-        color_away = TEAM_COLORS.get(game['away_abrv'], self.COLOURS['white'])
+        color_away = data_utils.get_team_color(game['away_abrv'], self.COLOURS['white'])
         if score_fade_color and game.get('scoring_team') in ['away', 'both']:
             color_away = score_fade_color
         elif self.settings['score_alerting']['score_coloured'] and game.get('away_team_scored'):
@@ -294,7 +294,7 @@ class WorldCupGamesScene(GamesScene):
         home_score = game['home_score']
         w = len(str(home_score)) * 8
         x = 52 - w // 2
-        color_home = TEAM_COLORS.get(game['home_abrv'], self.COLOURS['white'])
+        color_home = data_utils.get_team_color(game['home_abrv'], self.COLOURS['white'])
         if score_fade_color and game.get('scoring_team') in ['home', 'both']:
             color_home = score_fade_color
         elif self.settings['score_alerting']['score_coloured'] and game.get('home_team_scored'):

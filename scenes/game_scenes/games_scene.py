@@ -194,8 +194,8 @@ class GamesScene(Scene):
         home_abrv = game.get('home_abrv', '')
         vs_str = "@" if game.get('home_or_away') == 'away' else "VS"
 
-        color_away = data_utils.TEAM_COLORS.get(away_abrv, self.COLOURS['white'])
-        color_home = data_utils.TEAM_COLORS.get(home_abrv, self.COLOURS['white'])
+        color_away = data_utils.get_team_color(away_abrv, self.COLOURS['white'])
+        color_home = data_utils.get_team_color(home_abrv, self.COLOURS['white'])
 
         score_font = self.FONTS['sm_bold']
 

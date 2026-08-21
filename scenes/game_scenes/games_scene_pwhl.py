@@ -303,11 +303,11 @@ class PWHLGamesScene(GamesScene):
         away_score_str = str(away_score)
         home_score_str = str(home_score)
 
-        color_away = data_utils.TEAM_COLORS.get(game.get('away_abrv'), self.COLOURS['white'])
+        color_away = data_utils.get_team_color(game.get('away_abrv'), self.COLOURS['white'])
         if self.settings['score_alerting']['score_coloured'] and game.get('away_team_scored'):
             color_away = self.COLOURS['red_bright']
 
-        color_home = data_utils.TEAM_COLORS.get(game.get('home_abrv'), self.COLOURS['white'])
+        color_home = data_utils.get_team_color(game.get('home_abrv'), self.COLOURS['white'])
         if self.settings['score_alerting']['score_coloured'] and game.get('home_team_scored'):
             color_home = self.COLOURS['red_bright']
 
