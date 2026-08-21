@@ -377,17 +377,30 @@ class NFLGamesScene(GamesScene):
             w_i = get_text_3x5_width(info_text)
             draw_text_3x5(self.draw['full'], max(22, min(32 - w_i // 2, 41 - w_i)), 14, info_text, info_color)
 
-        # Win Probability / Momentum Micro-Bar (cols 22..41, row 21)
-        if game.get('home_win_pct') is not None:
-            h_pct = game['home_win_pct']
-            away_px = int(round(20 * (100 - h_pct) / 100.0))
-            away_color = data_utils.get_team_color(game.get('away_abrv'), self.COLOURS['white'])
-            home_color = data_utils.get_team_color(game.get('home_abrv'), self.COLOURS['white'])
-            if away_px > 0:
-                self.draw['full'].line([(22, 21), (22 + away_px - 1, 21)], fill=away_color)
-            if away_px < 20:
-                self.draw['full'].line([(22 + away_px, 21), (41, 21)], fill=home_color)
-            self.draw['full'].point((32, 21), fill=self.COLOURS['black'])
+        # Mini Football Field Bar with Yardline Ball Position (cols 22..41, row 21)
+        for col in range(22, 42):
+            self.draw['full'].point((col, 21), fill=(12, 48, 18))
+        
+        # Endzone / Goal line markers
+        self.draw['full'].point((22, 21), fill=(200, 200, 200))
+        self.draw['full'].point((41, 21), fill=(200, 200, 200))
+        
+        # Midfield 50-yd hash (cols 31..32)
+        self.draw['full'].point((31, 21), fill=(80, 110, 85))
+        self.draw['full'].point((32, 21), fill=(80, 110, 85))
+        
+        # Red zone tint on attacking side
+        if game.get('is_red_zone') or (game.get('yard_line') and (game['yard_line'] >= 80 or game['yard_line'] <= 20)):
+            rz_start = 38 if game.get('possession') == 'away' else 22
+            rz_end = 41 if game.get('possession') == 'away' else 25
+            for col in range(rz_start, rz_end + 1):
+                self.draw['full'].point((col, 21), fill=(100, 25, 25))
+
+        # Ball Position Pixel (Blinking Yellow Marker)
+        yard_line = game.get('yard_line', 50) if game.get('yard_line') is not None else 50
+        ball_col = int(round(22 + (max(0, min(100, yard_line)) / 100.0) * 19))
+        ball_color = self.COLOURS['yellow_bright'] if not blink_colon else (255, 255, 255)
+        self.draw['full'].point((ball_col, 21), fill=ball_color)
 
         # 2. BOTTOM 10 PIXELS (rows 22..31, cols 0..63): ENLARGED SCORES & TIMEOUTS
         away_score_str = str(game.get('away_score', 0))

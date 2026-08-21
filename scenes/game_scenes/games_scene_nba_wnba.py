@@ -327,14 +327,16 @@ class NBAWNBAGamesScene(GamesScene):
         elif poss == 'home' or poss == game.get('home_abrv'):
             self.draw['full'].rectangle([(47, 21), (57, 21)], fill=self.COLOURS['yellow_bright'])
 
-        # Bonus Foul Penalty Visual Indicator (Outer 1px vertical strip, rows 6..15)
+        # Graphical Bonus Foul Penalty Indicator (2x2 Amber Pips on row 20..21)
         away_f = game.get('away_fouls') if game.get('away_fouls') is not None else 0
         home_f = game.get('home_fouls') if game.get('home_fouls') is not None else 0
 
         if away_f >= 5 or game.get('away_bonus'):
-            self.draw['full'].rectangle([(0, 6), (0, 15)], fill=self.COLOURS['red_bright'])
+            self.draw['full'].rectangle([(18, 20), (19, 21)], fill=self.COLOURS['yellow_bright'])
+            self.draw['full'].rectangle([(0, 8), (0, 13)], fill=self.COLOURS['yellow_bright'])
         if home_f >= 5 or game.get('home_bonus'):
-            self.draw['full'].rectangle([(63, 6), (63, 15)], fill=self.COLOURS['red_bright'])
+            self.draw['full'].rectangle([(44, 20), (45, 21)], fill=self.COLOURS['yellow_bright'])
+            self.draw['full'].rectangle([(63, 8), (63, 13)], fill=self.COLOURS['yellow_bright'])
 
         # Center Info (cols 22..41, rows 0..21): Period & Clock & Info
         clock_str = ""

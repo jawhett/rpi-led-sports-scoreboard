@@ -284,17 +284,51 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0, alert_t
             w_i = get_text_3x5_width(info_text)
             draw_text_3x5(draw, max(22, min(32 - w_i // 2, 41 - w_i)), 14, info_text, info_color)
 
-        # Win Probability / Momentum Micro-Bar (cols 22..41, row 21)
-        if game.get('home_win_pct') is not None and league != 'MLB':
-            h_pct = game['home_win_pct']
-            away_px = int(round(20 * (100 - h_pct) / 100.0))
-            away_color = TEAM_COLORS.get(game.get('away_abrv'), COLOURS['white'])
-            home_color = TEAM_COLORS.get(game.get('home_abrv'), COLOURS['white'])
-            if away_px > 0:
-                draw.line([(22, 21), (22 + away_px - 1, 21)], fill=away_color)
-            if away_px < 20:
-                draw.line([(22 + away_px, 21), (41, 21)], fill=home_color)
-            draw.point((32, 21), fill=COLOURS['black'])
+        # Row 21: Sport-specific field / momentum indicator
+        if league == 'NFL':
+            # Mini Football Field Bar (cols 22..41, row 21)
+            # Dim turf green baseline
+            for col in range(22, 42):
+                draw.point((col, 21), fill=(12, 48, 18))
+            
+            # Endzone / Goal line markers
+            draw.point((22, 21), fill=(200, 200, 200))
+            draw.point((41, 21), fill=(200, 200, 200))
+            
+            # Midfield 50-yd hash (cols 31..32)
+            draw.point((31, 21), fill=(80, 110, 85))
+            draw.point((32, 21), fill=(80, 110, 85))
+            
+            # Red zone tint (last 4 pixels on attacking side)
+            if game.get('is_red_zone') or (game.get('yard_line') and (game['yard_line'] >= 80 or game['yard_line'] <= 20)):
+                rz_start = 38 if game.get('possession') == 'away' else 22
+                rz_end = 41 if game.get('possession') == 'away' else 25
+                for col in range(rz_start, rz_end + 1):
+                    draw.point((col, 21), fill=(100, 25, 25))
+
+            # Ball Position Pixel (Blinking Yellow)
+            yard_line = game.get('yard_line', 50)
+            ball_col = int(round(22 + (max(0, min(100, yard_line)) / 100.0) * 19))
+            draw.point((ball_col, 21), fill=COLOURS['yellow_bright'])
+
+        elif league in ('NBA', 'WNBA'):
+            # Win Probability / Momentum Micro-Bar (cols 22..41, row 21)
+            if game.get('home_win_pct') is not None:
+                h_pct = game['home_win_pct']
+                away_px = int(round(20 * (100 - h_pct) / 100.0))
+                away_color = TEAM_COLORS.get(game.get('away_abrv'), COLOURS['white'])
+                home_color = TEAM_COLORS.get(game.get('home_abrv'), COLOURS['white'])
+                if away_px > 0:
+                    draw.line([(22, 21), (22 + away_px - 1, 21)], fill=away_color)
+                if away_px < 20:
+                    draw.line([(22 + away_px, 21), (41, 21)], fill=home_color)
+                draw.point((32, 21), fill=COLOURS['black'])
+
+            # Graphical Bonus Pips (2x2 Amber/Gold Pips in corners, rows 20..21)
+            if game.get('away_fouls', 0) >= 5 or game.get('away_bonus'):
+                draw.rectangle([(0, 20), (1, 21)], fill=COLOURS['yellow_bright'])
+            if game.get('home_fouls', 0) >= 5 or game.get('home_bonus'):
+                draw.rectangle([(62, 20), (63, 21)], fill=COLOURS['yellow_bright'])
 
     elif status_code == 3:  # Completed - Spacious Stadium Layout with Centered Scores
         # Center Channel: OT / Series context if applicable on row 8
@@ -530,6 +564,7 @@ if __name__ == '__main__':
         'possession': 'away',
         'is_red_zone': True,
         'down_distance_text': '1ST & GOAL',
+        'yard_line': 88,
         'home_win_pct': 36.2
     }
 

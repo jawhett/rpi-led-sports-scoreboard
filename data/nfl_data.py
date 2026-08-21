@@ -111,10 +111,12 @@ def get_games(date):
                     down_distance_text = ""
                     home_win_pct = None
                     is_red_zone = False
+                    yard_line = None
                 
                     if 'situation' in comp:
                         sit = comp['situation']
                         is_red_zone = sit.get('isRedZone', False)
+                        yard_line = sit.get('yardLine')
                         poss_id = sit.get('possession')
                         if poss_id:
                             if str(poss_id) == str(home_team['team']['id']):
@@ -175,6 +177,7 @@ def get_games(date):
                         'possession': possession,
                         'is_red_zone': is_red_zone,
                         'down_distance_text': down_distance_text,
+                        'yard_line': yard_line,
                         'home_win_pct': home_win_pct,
                         'odds_str': odds_str,
                         'broadcaster': broadcaster,
