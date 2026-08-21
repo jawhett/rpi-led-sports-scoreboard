@@ -152,6 +152,9 @@ def get_games(date):
                             broadcaster = names[0]
                             break
 
+                    # Period type
+                    period_type = 'OT' if period_num > 4 else 'Std'
+
                     games.append({
                         'game_id': event['id'],
                         'home_abrv': home_abrv,
