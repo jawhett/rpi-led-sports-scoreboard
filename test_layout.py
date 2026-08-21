@@ -180,14 +180,6 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0):
             w_c = get_text_3x5_width(center_text)
             draw_text_3x5(draw, 32 - w_c // 2, 8, center_text, COLOURS['yellow_bright'])
 
-        # Winner under-glow on row 21
-        away_s = game.get('away_score', 0)
-        home_s = game.get('home_score', 0)
-        if away_s > home_s:
-            draw.rectangle([(4, 21), (19, 21)], fill=COLOURS['yellow_bright'])
-        elif home_s > away_s:
-            draw.rectangle([(44, 21), (59, 21)], fill=COLOURS['yellow_bright'])
-
     elif status_code == 1:  # Scheduled
         date_str = game.get('date_str', 'TODAY')
         time_str = game.get('time_str', '')

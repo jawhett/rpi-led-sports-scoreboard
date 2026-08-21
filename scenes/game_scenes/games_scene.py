@@ -246,12 +246,6 @@ class GamesScene(Scene):
         # Dimmed Red Border signifying Final Status
         self.draw['full'].rectangle([(0, 0), (63, 31)], outline=self.COLOURS.get('red_dim', (80, 15, 15)))
 
-        # Winner Victory Under-Glow Bar (row 21)
-        if away_score > home_score:
-            self.draw['full'].rectangle([(4, 21), (19, 21)], fill=self.COLOURS['yellow_bright'])
-        elif home_score > away_score:
-            self.draw['full'].rectangle([(44, 21), (59, 21)], fill=self.COLOURS['yellow_bright'])
-
         # Center Channel (cols 22..41, rows 0..21): OT / Series context only when applicable
         period_str = ""
         if hasattr(self, 'get_final_period_str'):
