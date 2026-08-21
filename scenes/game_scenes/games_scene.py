@@ -243,8 +243,8 @@ class GamesScene(Scene):
         away_score = game['away_score'] if game.get('away_score') is not None else 0
         home_score = game['home_score'] if game.get('home_score') is not None else 0
 
-        # Red Border signifying Final Status
-        self.draw['full'].rectangle([(0, 0), (63, 31)], outline=self.COLOURS['red_bright'])
+        # Dimmed Red Border signifying Final Status
+        self.draw['full'].rectangle([(0, 0), (63, 31)], outline=self.COLOURS.get('red_dim', (80, 15, 15)))
 
         # Winner Victory Under-Glow Bar (row 21)
         if away_score > home_score:

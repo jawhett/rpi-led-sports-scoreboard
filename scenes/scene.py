@@ -33,6 +33,7 @@ class Scene():
             'cyan':         (0, 192, 255),
             'green_bright': (0, 255, 127),
             'red_bright':   (255, 48, 48),
+            'red_dim':      (80, 15, 15),
             'yellow_bright':(255, 215, 0)
         }
 

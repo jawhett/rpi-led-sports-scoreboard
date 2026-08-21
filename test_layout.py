@@ -163,8 +163,8 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0):
             draw.point((32, 21), fill=COLOURS['black'])
 
     elif status_code == 3:  # Completed - Clean Stadium Layout
-        # Red Border signifying Final Status
-        draw.rectangle([(0, 0), (63, 31)], outline=COLOURS['red_bright'])
+        # Dimmed Red Border signifying Final Status
+        draw.rectangle([(0, 0), (63, 31)], outline=COLOURS.get('red_dim', (80, 15, 15)))
 
         # Center Channel: Single clean piece of post-game context (OT, Series, or Total)
         ot_str = game.get('ot_str', '')
