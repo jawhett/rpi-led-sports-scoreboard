@@ -605,49 +605,47 @@ class GamesScene(Scene):
 
         # 'Modern' transition.
         elif self.settings['transition'] == 'modern':
-            # Define the 'fade rule', that is the steps between 0 (transparent) and 255 (opaque).
-            fade = (255, -1, -30) if direction == 'in' else (0, 256, 30)
+            # Define the 'fade rule', steps between 255 (opaque black) and 0 (fully clear).
+            opacities = [255, 210, 165, 120, 80, 45, 20, 0] if direction == 'in' else [0, 30, 65, 105, 150, 195, 235, 255]
 
             # If the final image already exists, make a copy for later use.
             if image_already_combined:
                 combined_image = self.images['full'].copy()
 
             if direction == 'in':
-                # Loop over opacities to apply to image and horizontal movement via col_offset.
-                for overlay_opacity, col_offset in zip(range(*fade), range(-len(range(*fade))+1, 1, 1)):
-                    # Rebuild full image with offsets. Will first need to clear the image. This will also ensure there's no artifacts between loops of animation.    
+                offsets = list(range(-len(opacities) + 1, 1, 1))
+                for overlay_opacity, col_offset in zip(opacities, offsets):
                     image_utils.clear_image(self.images['full'], self.draw['full'])
 
-                    # If the image has not already been combined, add each sub-image to the full with a col_offset applied.
                     if not image_already_combined:                        
                         self.images['full'].paste(self.images['left'], (-19 + col_offset, 1))
                         self.images['full'].paste(self.images['centre'], (22 + col_offset, 1))
                         self.images['full'].paste(self.images['right'], (43 + col_offset, 1))          
-                    # Otherwise, copy the combined_image copied above to full with a col_offset applied.
                     else:
                         self.images['full'].paste(combined_image, (col_offset, 0))
 
-                    # Create faded image to display on matrix.
-                    faded_for_display_image = self.create_faded_image(self.images['full'], overlay_opacity)
-
-                    # Display and sleep for a short time to pace the animation.
-                    matrix.SetImage(faded_for_display_image)
+                    if overlay_opacity > 0:
+                        faded_for_display_image = self.create_faded_image(self.images['full'], overlay_opacity)
+                        matrix.SetImage(faded_for_display_image)
+                    else:
+                        matrix.SetImage(self.images['full'])
                     sleep(0.012)
             
             elif direction == 'out':
-                # Loop over opacities to apply to image and horizontal movement via col_offset.
-                for overlay_opacity, col_offset in zip(range(*fade), range(0, len(range(*fade)), 1)):
-                    # Rebuild full image with offsets. Will first need to clear the image. This will also ensure there's no artifacts between loops of animation.    
+                offsets = list(range(0, len(opacities), 1))
+                for overlay_opacity, col_offset in zip(opacities, offsets):
                     image_utils.clear_image(self.images['full'], self.draw['full'])
                     
-                    # If the image has not already been combined, add each sub-image to the full with a col_offset applied.
                     if not image_already_combined:                        
                         self.images['full'].paste(self.images['left'], (-19 + col_offset, 1))
                         self.images['full'].paste(self.images['centre'], (22 + col_offset, 1))
                         self.images['full'].paste(self.images['right'], (43 + col_offset, 1))       
-                    # Otherwise, copy the combined_image copied above to full with a col_offset applied.
                     else:
                         self.images['full'].paste(combined_image, (col_offset, 0))
+
+                    faded_for_display_image = self.create_faded_image(self.images['full'], overlay_opacity)
+                    matrix.SetImage(faded_for_display_image)
+                    sleep(0.012)
 
                     # Create faded image to display on matrix.
                     faded_for_display_image = self.create_faded_image(self.images['full'], overlay_opacity)
