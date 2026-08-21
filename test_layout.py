@@ -321,39 +321,84 @@ def build_suns_countdown_mock(next_game):
     img = Image.new('RGB', (64, 32), (0, 0, 0))
     draw = ImageDraw.Draw(img)
 
+    SUNS_ORANGE = (255, 110, 0)
+    SUNS_PURPLE = (92, 38, 142)
+
+    def paste_logo(logo_img, target_x_center, target_y_center=10):
+        if not logo_img:
+            return
+        w, h = logo_img.size
+        if w <= 0 or h <= 0:
+            return
+        aspect = float(w) / float(h)
+        if aspect > 1.3:
+            scale = min(28.0 / w, 20.0 / h)
+        elif aspect < 0.77:
+            scale = min(22.0 / w, 21.0 / h)
+        else:
+            scale = min(22.0 / w, 20.0 / h)
+        new_w = max(1, int(round(w * scale)))
+        new_h = max(1, int(round(h * scale)))
+        resized = logo_img.resize((new_w, new_h), Image.Resampling.LANCZOS)
+        pos_x = max(0, min(64 - new_w, target_x_center - new_w // 2))
+        pos_y = max(0, min(32 - new_h, target_y_center - new_h // 2))
+        img.paste(resized, (pos_x, pos_y))
+
+    # 1. Left Logo: Phoenix Suns
     suns_logo = load_logo('NBA', 'PHX')
     if suns_logo:
-        suns_logo.thumbnail((28, 28))
-        y_pos = (32 - suns_logo.height) // 2
-        img.paste(suns_logo, (1, max(0, y_pos)))
+        paste_logo(suns_logo, target_x_center=11, target_y_center=10)
 
-    if next_game and next_game.get('opponent_abrv'):
-        opp_logo = load_logo('NBA', next_game['opponent_abrv'])
+    # 2. Right Logo: Opponent
+    opp_abrv = next_game.get('opponent_abrv') if next_game else None
+    if opp_abrv:
+        opp_logo = load_logo('NBA', opp_abrv)
         if opp_logo:
-            opp_logo.thumbnail((22, 22))
-            x_pos = 63 - opp_logo.width
-            y_pos = (32 - opp_logo.height) // 2
-            img.paste(opp_logo, (x_pos, max(0, y_pos)))
+            paste_logo(opp_logo, target_x_center=53, target_y_center=10)
 
-    SUNS_ORANGE = (229, 96, 32)
-    draw_text_3x5(draw, 31, 1, "PHX SUNS", SUNS_ORANGE)
+    # 3. Bottom row: Team Tricodes
+    score_font = FONTS['sm_bold']
+    draw.text((3, 22), "PHX", font=score_font, fill=SUNS_ORANGE)
+    if opp_abrv:
+        opp_color = TEAM_COLORS.get(opp_abrv, COLOURS['white'])
+        draw.text((47, 22), opp_abrv, font=score_font, fill=opp_color)
 
-    from datetime import datetime as dt
+    # 4. Center Channel (cols 22..41, width 20px)
     cur_datetime = dt.today().astimezone()
     if next_game and not next_game.get('is_completed'):
         start_dt = next_game['start_datetime_local']
         days_diff = (start_dt.date() - cur_datetime.date()).days
-        if days_diff > 1 and days_diff <= 60:
-            count_str = f"IN {days_diff} DAYS"
-            draw_text_3x5(draw, 30, 9, count_str, COLOURS['yellow_bright'])
-            date_str = start_dt.strftime('%b %d').upper()
-            draw_text_3x5(draw, 30, 17, date_str, COLOURS['white'])
-        elif days_diff == 0:
-            draw_text_3x5(draw, 30, 9, "GAMEDAY!", COLOURS['yellow_bright'])
-        venue_str = f"@ {next_game['opponent_abrv']}" if next_game.get('home_or_away') == 'away' else f"VS {next_game['opponent_abrv']}"
-        w = get_text_3x5_width(venue_str)
-        x_b = 46 - w // 2
-        draw_text_3x5(draw, max(30, x_b), 25, venue_str, COLOURS['white'])
+
+        if days_diff == 0:
+            top_str = "TODAY"
+            top_color = COLOURS['yellow_bright']
+        elif days_diff == 1:
+            top_str = "TMRW"
+            top_color = COLOURS['cyan']
+        elif days_diff <= 99:
+            top_str = f"IN {days_diff}D"
+            top_color = COLOURS['yellow_bright']
+        else:
+            top_str = start_dt.strftime('%b %d').upper()
+            top_color = COLOURS['yellow_bright']
+
+        w_top = get_text_3x5_width(top_str)
+        draw_text_3x5(draw, 32 - w_top // 2, 1, top_str, top_color)
+
+        date_str = start_dt.strftime('%b %d').upper()
+        if " 0" in date_str: date_str = date_str.replace(" 0", " ")
+        w_d = get_text_3x5_width(date_str)
+        draw_text_3x5(draw, 32 - w_d // 2, 7, date_str, COLOURS['white'])
+
+        time_str = start_dt.strftime('%I:%M %p').lstrip('0')
+        w_t = get_text_3x5_width(time_str)
+        draw_text_3x5(draw, max(22, min(32 - w_t // 2, 41 - w_t)), 14, time_str, COLOURS['yellow_bright'])
+
+        # Matchup separator @ or VS
+        vs_str = "@" if next_game.get('home_or_away') == 'away' else "VS"
+        w_vs = get_text_3x5_width(vs_str)
+        draw_text_3x5(draw, 32 - w_vs // 2, 24, vs_str, COLOURS['yellow'])
+
     return img
 
 if __name__ == '__main__':

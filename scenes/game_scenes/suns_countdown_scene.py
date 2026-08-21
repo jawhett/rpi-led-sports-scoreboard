@@ -36,75 +36,100 @@ class SunsCountdownScene(GamesScene):
     def build_suns_countdown_image(self, next_game):
         image_utils.clear_image(self.images['full'], self.draw['full'])
 
-        # 1. Draw large Phoenix Suns Logo (28x28) on the left
+        def paste_logo(logo_img, target_x_center, target_y_center=10):
+            if not logo_img:
+                return
+            w, h = logo_img.size
+            if w <= 0 or h <= 0:
+                return
+            aspect = float(w) / float(h)
+            if aspect > 1.3:
+                scale = min(28.0 / w, 20.0 / h)
+            elif aspect < 0.77:
+                scale = min(22.0 / w, 21.0 / h)
+            else:
+                scale = min(22.0 / w, 20.0 / h)
+            new_w = max(1, int(round(w * scale)))
+            new_h = max(1, int(round(h * scale)))
+            resized = logo_img.resize((new_w, new_h), Image.Resampling.LANCZOS)
+            pos_x = max(0, min(64 - new_w, target_x_center - new_w // 2))
+            pos_y = max(0, min(32 - new_h, target_y_center - new_h // 2))
+            self.images['full'].paste(resized, (pos_x, pos_y))
+
+        # 1. Left Logo: Phoenix Suns
         suns_logo_path = 'assets/images/NBA/teams/PHX.png'
         if os.path.exists(suns_logo_path):
             try:
                 suns_logo = Image.open(suns_logo_path)
                 suns_logo = image_utils.crop_image(suns_logo)
-                suns_logo.thumbnail((26, 26))
-                y_pos = (32 - suns_logo.height) // 2
-                self.images['full'].paste(suns_logo, (1, max(0, y_pos)))
+                paste_logo(suns_logo, target_x_center=11, target_y_center=10)
             except Exception as e:
                 print(f"Error loading Suns logo: {e}")
 
-        # 2. Draw Opponent Logo on the right
-        if next_game and next_game.get('opponent_abrv'):
-            opp_abrv = next_game['opponent_abrv']
+        # 2. Right Logo: Opponent
+        opp_abrv = next_game.get('opponent_abrv') if next_game else None
+        if opp_abrv:
             opp_logo_path = f'assets/images/NBA/teams/{opp_abrv}.png'
             if os.path.exists(opp_logo_path):
                 try:
                     opp_logo = Image.open(opp_logo_path)
                     opp_logo = image_utils.crop_image(opp_logo)
-                    opp_logo.thumbnail((22, 22))
-                    x_pos = 63 - opp_logo.width
-                    y_pos = (32 - opp_logo.height) // 2
-                    self.images['full'].paste(opp_logo, (x_pos, max(0, y_pos)))
+                    paste_logo(opp_logo, target_x_center=53, target_y_center=10)
                 except Exception:
                     pass
 
-        # 3. Header text: PHX SUNS
-        w_title = get_text_3x5_width("PHX SUNS")
-        draw_text_3x5(self.draw['full'], 30, 1, "PHX SUNS", self.SUNS_ORANGE)
+        # 3. Bottom row: Team Tricodes
+        score_font = self.FONTS['sm_bold']
+        self.draw['full'].text((3, 22), "PHX", font=score_font, fill=self.SUNS_ORANGE)
+        if opp_abrv:
+            opp_color = data_utils.get_team_color(opp_abrv, fallback=self.COLOURS['white'])
+            self.draw['full'].text((47, 22), opp_abrv, font=score_font, fill=opp_color)
 
-        # 4. Countdown / Matchup details
+        # 4. Center Channel (cols 22..41, width 20px): Countdown & Matchup details
         cur_datetime = dt.today().astimezone()
-        
         if next_game and not next_game.get('is_completed'):
             start_dt = next_game['start_datetime_local']
             days_diff = (start_dt.date() - cur_datetime.date()).days
 
             if days_diff == 0:
-                time_str = start_dt.strftime('%I:%M %p').lstrip('0')
-                draw_text_3x5(self.draw['full'], 30, 8, "GAMEDAY!", self.COLOURS['yellow_bright'])
-                draw_text_3x5(self.draw['full'], 30, 16, time_str, self.COLOURS['white'])
+                top_str = "TODAY"
+                top_color = self.COLOURS['yellow_bright']
             elif days_diff == 1:
-                draw_text_3x5(self.draw['full'], 30, 8, "TOMORROW", self.COLOURS['cyan'])
-                time_str = start_dt.strftime('%I:%M %p').lstrip('0')
-                draw_text_3x5(self.draw['full'], 30, 16, time_str, self.COLOURS['white'])
+                top_str = "TMRW"
+                top_color = self.COLOURS['cyan']
+            elif days_diff <= 99:
+                top_str = f"IN {days_diff}D"
+                top_color = self.COLOURS['yellow_bright']
             else:
-                # Count in days
-                count_str = f"IN {days_diff} DAYS"
-                draw_text_3x5(self.draw['full'], 30, 8, count_str, self.COLOURS['yellow_bright'])
-                # Date and compact time (e.g. OCT 5 4:00P)
-                time_compact = start_dt.strftime('%I:%M%p').lstrip('0').replace(':00', '').lower()
-                date_str = start_dt.strftime('%b %d').upper()
-                if " 0" in date_str: date_str = date_str.replace(" 0", " ")
-                info_line = f"{date_str} {time_compact}"
-                draw_text_3x5(self.draw['full'], 30, 16, info_line, self.COLOURS['white'])
-            
-            # Bottom matchup line (@ DET or VS DET)
-            venue_str = f"@ {next_game['opponent_abrv']}" if next_game.get('home_or_away') == 'away' else f"VS {next_game['opponent_abrv']}"
-            draw_text_3x5(self.draw['full'], 30, 25, venue_str, self.COLOURS['cyan'])
+                top_str = start_dt.strftime('%b %d').upper()
+                top_color = self.COLOURS['yellow_bright']
+
+            w_top = get_text_3x5_width(top_str)
+            draw_text_3x5(self.draw['full'], 32 - w_top // 2, 1, top_str, top_color)
+
+            date_str = start_dt.strftime('%b %d').upper()
+            if " 0" in date_str: date_str = date_str.replace(" 0", " ")
+            w_d = get_text_3x5_width(date_str)
+            draw_text_3x5(self.draw['full'], 32 - w_d // 2, 7, date_str, self.COLOURS['white'])
+
+            time_str = start_dt.strftime('%I:%M %p').lstrip('0')
+            w_t = get_text_3x5_width(time_str)
+            draw_text_3x5(self.draw['full'], max(22, min(32 - w_t // 2, 41 - w_t)), 14, time_str, self.COLOURS['yellow_bright'])
+
+            # Matchup separator @ or VS
+            vs_str = "@" if next_game.get('home_or_away') == 'away' else "VS"
+            w_vs = get_text_3x5_width(vs_str)
+            draw_text_3x5(self.draw['full'], 32 - w_vs // 2, 24, vs_str, self.COLOURS['yellow'])
 
         elif next_game and next_game.get('is_completed'):
-            draw_text_3x5(self.draw['full'], 30, 8, "LAST GAME", self.COLOURS['grey_light'])
+            draw_text_3x5(self.draw['full'], 32 - get_text_3x5_width("LAST") // 2, 1, "LAST", self.COLOURS['grey_light'])
+            draw_text_3x5(self.draw['full'], 32 - get_text_3x5_width("FINAL") // 2, 7, "FINAL", self.COLOURS['yellow_bright'])
             res_color = self.COLOURS['green_bright'] if next_game.get('is_win') else self.COLOURS['red_bright']
             res_str = "WIN" if next_game.get('is_win') else "LOSS"
-            draw_text_3x5(self.draw['full'], 30, 16, res_str, res_color)
+            draw_text_3x5(self.draw['full'], 32 - get_text_3x5_width(res_str) // 2, 14, res_str, res_color)
             score_str = next_game.get('score_str', '')
             if score_str:
-                draw_text_3x5(self.draw['full'], 30, 25, score_str, self.COLOURS['white'])
+                draw_text_3x5(self.draw['full'], 32 - get_text_3x5_width(score_str) // 2, 24, score_str, self.COLOURS['white'])
         else:
-            draw_text_3x5(self.draw['full'], 30, 9, "VALLEY", self.SUNS_ORANGE)
-            draw_text_3x5(self.draw['full'], 30, 18, "SUNS HUB", self.COLOURS['white'])
+            draw_text_3x5(self.draw['full'], 32 - get_text_3x5_width("VALLEY") // 2, 7, "VALLEY", self.SUNS_ORANGE)
+            draw_text_3x5(self.draw['full'], 32 - get_text_3x5_width("SUNS HUB") // 2, 14, "SUNS HUB", self.COLOURS['white'])
