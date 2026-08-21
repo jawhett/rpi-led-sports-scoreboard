@@ -299,9 +299,12 @@ class NBAWNBAGamesScene(GamesScene):
             self.draw['full'].rectangle([(48, 21), (57, 21)], fill=self.COLOURS['yellow_bright'])
 
         # Bonus Foul Penalty Visual Indicator (Outer 1px vertical strip, rows 6..15)
-        if game.get('away_fouls', 0) >= 5 or game.get('away_bonus'):
+        away_f = game.get('away_fouls') if game.get('away_fouls') is not None else 0
+        home_f = game.get('home_fouls') if game.get('home_fouls') is not None else 0
+
+        if away_f >= 5 or game.get('away_bonus'):
             self.draw['full'].rectangle([(0, 6), (0, 15)], fill=self.COLOURS['red_bright'])
-        if game.get('home_fouls', 0) >= 5 or game.get('home_bonus'):
+        if home_f >= 5 or game.get('home_bonus'):
             self.draw['full'].rectangle([(63, 6), (63, 15)], fill=self.COLOURS['red_bright'])
 
         # Center Info (cols 22..41, rows 0..21): Period & Clock & Info
@@ -337,8 +340,8 @@ class NBAWNBAGamesScene(GamesScene):
             info_text = alert_text_override
             info_color = self.COLOURS['yellow_bright']
         elif game.get('away_fouls') is not None or game.get('home_fouls') is not None:
-            info_text = f"F {game.get('away_fouls', 0)}-{game.get('home_fouls', 0)}"
-            info_color = self.COLOURS['red_bright'] if (game.get('away_fouls', 0) >= 5 or game.get('home_fouls', 0) >= 5) else self.COLOURS['yellow_bright']
+            info_text = f"F {away_f}-{home_f}"
+            info_color = self.COLOURS['red_bright'] if (away_f >= 5 or home_f >= 5) else self.COLOURS['yellow_bright']
 
         if info_text:
             w_i = get_text_3x5_width(info_text)
