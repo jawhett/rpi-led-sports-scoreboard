@@ -141,10 +141,10 @@ class StandingsScene(Scene):
                 tmp_draw.line([(1, 7), (54, 7)], fill=line_colour)
             
             # Determine the colour for each row's text based on if the team is a favourite per config.yaml.
-            team_colour = self.COLOURS['white'] # Default white.
-            if self.favourite_teams and self.settings['highlight_fav_teams']:
-                if team['team_abrv'] in self.favourite_teams:
-                    team_colour = self.COLOURS['yellow'] # Favs are yellow.
+            from utils import data_utils
+            is_fav = (self.favourite_teams and self.settings['highlight_fav_teams'] and team['team_abrv'] in self.favourite_teams)
+            team_colour = self.COLOURS['yellow'] if is_fav else self.COLOURS['white']
+            abrv_colour = self.COLOURS['yellow'] if is_fav else data_utils.get_team_color(team['team_abrv'], fallback=self.COLOURS['white'])
 
             # Determine placement of team ranking and add to image.
             rank_offset = 5 if len(str(team['rank'])) < 2 else 0
@@ -156,8 +156,8 @@ class StandingsScene(Scene):
 
             # TODO: Add a gold star if the team has clinched the league title. Applicable for non-playoff sports only.
             
-            # Add team abrv.
-            tmp_draw.text((21, -1), team['team_abrv'], font=self.FONTS['sm'], fill=team_colour)
+            # Add team abrv in authentic team color.
+            tmp_draw.text((21, -1), team['team_abrv'], font=self.FONTS['sm'], fill=abrv_colour)
 
             if standing_details['rank_method'] in ['Points', 'Wins']:
                 # Determine placement offset of team points based on length.

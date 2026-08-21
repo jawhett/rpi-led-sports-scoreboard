@@ -81,15 +81,24 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0):
             away_f = game.get('away_fouls', 0)
             home_f = game.get('home_fouls', 0)
             if rotation_mode == 0 and game.get('leader_text'):
-                info_text = game['leader_text']
+                ldr = game['leader_text']
+                parts = ldr.split(' ')
+                if len(parts) == 2:
+                    name, pts = parts[0], parts[1]
+                    # Show player name if <= 5 chars, otherwise pts
+                    info_text = name[:5] if len(name) <= 5 else pts
+                else:
+                    info_text = ldr[:5]
+                info_color = COLOURS['yellow_bright']
+            elif rotation_mode == 1 and game.get('leader_text'):
+                ldr = game['leader_text']
+                parts = ldr.split(' ')
+                info_text = parts[1] if len(parts) == 2 else "PTS"
                 info_color = COLOURS['yellow_bright']
             elif (away_f > 0 or home_f > 0):
                 info_text = f"F {away_f}-{home_f}"
                 info_color = COLOURS['red_bright'] if (away_f >= 5 or home_f >= 5) else COLOURS['yellow_bright']
-            elif game.get('leader_text'):
-                info_text = game['leader_text']
-                info_color = COLOURS['yellow_bright']
-            elif game.get('home_win_pct') is not None and rotation_mode == 1:
+            elif game.get('home_win_pct') is not None:
                 pct = game['home_win_pct']
                 fav_abrv = game['home_abrv'] if pct >= 50 else game['away_abrv']
                 fav_pct = int(pct if pct >= 50 else (100 - pct))
@@ -147,14 +156,14 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0):
     if home_logo:
         paste_logo(home_logo, target_x_center=53, target_y_center=10)
 
-    # Possession Indicator (Visual Under-Glow)
+    # Possession Indicator (Visual Under-Glow centered under logos)
     poss = game.get('possession')  # 'away' or 'home' or tricode
     if poss == 'away' or poss == game.get('away_abrv'):
-        # Away possession under-glow (cols 6..15, row 21)
-        draw.rectangle([(6, 21), (15, 21)], fill=COLOURS['yellow_bright'])
+        # Away possession under-glow (cols 6..16, row 21)
+        draw.rectangle([(6, 21), (16, 21)], fill=COLOURS['yellow_bright'])
     elif poss == 'home' or poss == game.get('home_abrv'):
-        # Home possession under-glow (cols 48..57, row 21)
-        draw.rectangle([(48, 21), (57, 21)], fill=COLOURS['yellow_bright'])
+        # Home possession under-glow (cols 47..57, row 21)
+        draw.rectangle([(47, 21), (57, 21)], fill=COLOURS['yellow_bright'])
 
     # Bonus Foul Visual Alert (Outer 1px vertical strip, rows 6..15)
     if game.get('away_fouls', 0) >= 5 or game.get('away_bonus'):
@@ -194,7 +203,7 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0):
                 draw.line([(22 + away_px, 21), (41, 21)], fill=home_color)
             draw.point((32, 21), fill=COLOURS['black'])
 
-    elif status_code == 3:  # Completed - Spacious Stadium Layout with Names & Scores
+    elif status_code == 3:  # Completed - Spacious Stadium Layout with Centered Scores
         # Center Channel: OT / Series context if applicable on row 8
         ot_str = game.get('ot_str', '')
         series_text = game.get('series_text', '')
@@ -204,16 +213,14 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0):
             center_text = ot_str if "OT" in ot_str else f"F/{ot_str}"
         elif series_text:
             center_text = series_text
+        else:
+            center_text = "FINAL"
 
         if center_text:
             w_c = get_text_3x5_width(center_text)
             draw_text_3x5(draw, 32 - w_c // 2, 8, center_text, COLOURS['yellow_bright'])
 
-        # "VS" in center channel aligned with bottom of logos at y=15
-        w_vs = get_text_3x5_width("VS")
-        draw_text_3x5(draw, 32 - w_vs // 2, 15, "VS", COLOURS['yellow'])
-
-    # --- BOTTOM ROWS (rows 22..31, cols 0..63): TEAM NAMES & SCORES ---
+    # --- BOTTOM ROWS (rows 22..31, cols 0..63): SCORES & TIMEOUTS ---
     if status_code in (2, 3):  # Live or Final
         away_score_val = game.get('away_score', 0)
         home_score_val = game.get('home_score', 0)
@@ -227,30 +234,24 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0):
             elif home_score_val < away_score_val:
                 color_home = (120, 120, 120)
 
-            # Team Names + Scores beneath each logo
-            score_font = FONTS['sm_bold']
-            is_3digit = (away_score_val >= 100 or home_score_val >= 100)
+            # Scores centered directly under each team's logo
+            score_font = FONTS['med_bold']
+            away_str = str(away_score_val)
+            home_str = str(home_score_val)
 
-            if is_3digit:
-                draw_text_3x5(draw, 0, 24, game['away_abrv'], color_away)
-                draw.text((12, 22), str(away_score_val), font=score_font, fill=color_away)
+            bbox_away = draw.textbbox((0, 0), away_str, font=score_font)
+            w_away = bbox_away[2] - bbox_away[0]
+            x_away = 11 - w_away // 2
 
-                draw.text((37, 22), str(home_score_val), font=score_font, fill=color_home)
-                draw_text_3x5(draw, 54, 24, game['home_abrv'], color_home)
-            else:
-                away_str = f"{game['away_abrv']} {away_score_val}"
-                home_str = f"{home_score_val} {game['home_abrv']}"
+            bbox_home = draw.textbbox((0, 0), home_str, font=score_font)
+            w_home = bbox_home[2] - bbox_home[0]
+            x_home = 53 - w_home // 2
 
-                bbox_away = draw.textbbox((0, 0), away_str, font=score_font)
-                w_away = bbox_away[2] - bbox_away[0]
-                x_away = max(0, min(28 - w_away, 11 - w_away // 2))
+            draw.text((x_away, 20), away_str, font=score_font, fill=color_away)
+            draw.text((x_home, 20), home_str, font=score_font, fill=color_home)
 
-                bbox_home = draw.textbbox((0, 0), home_str, font=score_font)
-                w_home = bbox_home[2] - bbox_home[0]
-                x_home = max(36, min(64 - w_home, 53 - w_home // 2))
-
-                draw.text((x_away, 22), away_str, font=score_font, fill=color_away)
-                draw.text((x_home, 22), home_str, font=score_font, fill=color_home)
+            # Center divider badge between scores
+            draw_text_3x5(draw, 30, 24, "-", COLOURS['grey_light'])
         else:
             score_font = FONTS['sm_bold']
             away_score_str = str(away_score_val)

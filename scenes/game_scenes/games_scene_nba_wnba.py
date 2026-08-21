@@ -281,14 +281,34 @@ class NBAWNBAGamesScene(GamesScene):
         """
         image_utils.clear_image(self.images['full'], self.draw['full'])
 
-        # 1. ROWS 0..21: TEAM LOGOS (22x22)
+        # Helper to scale and center logos with aspect-ratio awareness
+        def paste_logo(logo_img, target_x_center, target_y_center=10):
+            if not logo_img:
+                return
+            w, h = logo_img.size
+            if w <= 0 or h <= 0:
+                return
+            aspect = float(w) / float(h)
+            if aspect > 1.3:  # Wide logo: allow expanding up to 28px width
+                scale = min(28.0 / w, 20.0 / h)
+            elif aspect < 0.77:  # Tall logo: allow expanding up to 21px height
+                scale = min(22.0 / w, 21.0 / h)
+            else:  # Square-ish logo
+                scale = min(22.0 / w, 20.0 / h)
+            new_w = max(1, int(round(w * scale)))
+            new_h = max(1, int(round(h * scale)))
+            resized = logo_img.resize((new_w, new_h), Image.Resampling.LANCZOS)
+            pos_x = max(0, min(64 - new_w, target_x_center - new_w // 2))
+            pos_y = max(0, min(32 - new_h, target_y_center - new_h // 2))
+            self.images['full'].paste(resized, (pos_x, pos_y))
+
+        # 1. ROWS 0..21: TEAM LOGOS (aspect-ratio aware)
         away_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["away_abrv"]}.png' if game["away_abrv"] not in self.alt_logos else f'assets/images/{self.LEAGUE}/teams_alt/{game["away_abrv"]}_{self.alt_logos[game["away_abrv"]]}.png'
         if os.path.exists(away_logo_path):
             try:
                 away_logo = Image.open(away_logo_path)
                 away_logo = image_utils.crop_image(away_logo)
-                away_logo.thumbnail((22, 22))
-                self.images['full'].paste(away_logo, (0, 0))
+                paste_logo(away_logo, target_x_center=11, target_y_center=10)
             except Exception as e:
                 print(f"Error loading logo {away_logo_path}: {e}")
 
@@ -297,17 +317,16 @@ class NBAWNBAGamesScene(GamesScene):
             try:
                 home_logo = Image.open(home_logo_path)
                 home_logo = image_utils.crop_image(home_logo)
-                home_logo.thumbnail((22, 22))
-                self.images['full'].paste(home_logo, (42, 0))
+                paste_logo(home_logo, target_x_center=53, target_y_center=10)
             except Exception as e:
                 print(f"Error loading logo {home_logo_path}: {e}")
 
-        # Possession Accent (Under-Glow on row 21)
+        # Possession Accent (Under-Glow centered under logos on row 21)
         poss = game.get('possession')
         if poss == 'away' or poss == game.get('away_abrv'):
-            self.draw['full'].rectangle([(6, 21), (15, 21)], fill=self.COLOURS['yellow_bright'])
+            self.draw['full'].rectangle([(6, 21), (16, 21)], fill=self.COLOURS['yellow_bright'])
         elif poss == 'home' or poss == game.get('home_abrv'):
-            self.draw['full'].rectangle([(48, 21), (57, 21)], fill=self.COLOURS['yellow_bright'])
+            self.draw['full'].rectangle([(47, 21), (57, 21)], fill=self.COLOURS['yellow_bright'])
 
         # Bonus Foul Penalty Visual Indicator (Outer 1px vertical strip, rows 6..15)
         away_f = game.get('away_fouls') if game.get('away_fouls') is not None else 0
@@ -351,15 +370,23 @@ class NBAWNBAGamesScene(GamesScene):
             info_text = alert_text_override
             info_color = self.COLOURS['yellow_bright']
         elif rotation_mode == 0 and game.get('leader_text'):
-            info_text = game['leader_text']
+            ldr = game['leader_text']
+            parts = ldr.split(' ')
+            if len(parts) == 2:
+                name, pts = parts[0], parts[1]
+                info_text = name[:5] if len(name) <= 5 else pts
+            else:
+                info_text = ldr[:5]
+            info_color = self.COLOURS['yellow_bright']
+        elif rotation_mode == 1 and game.get('leader_text'):
+            ldr = game['leader_text']
+            parts = ldr.split(' ')
+            info_text = parts[1] if len(parts) == 2 else "PTS"
             info_color = self.COLOURS['yellow_bright']
         elif (away_f > 0 or home_f > 0):
             info_text = f"F {away_f}-{home_f}"
             info_color = self.COLOURS['red_bright'] if (away_f >= 5 or home_f >= 5) else self.COLOURS['yellow_bright']
-        elif game.get('leader_text'):
-            info_text = game['leader_text']
-            info_color = self.COLOURS['yellow_bright']
-        elif game.get('home_win_pct') is not None and rotation_mode == 1:
+        elif game.get('home_win_pct') is not None:
             pct = game['home_win_pct']
             fav_abrv = game['home_abrv'] if pct >= 50 else game['away_abrv']
             fav_pct = int(pct if pct >= 50 else (100 - pct))
@@ -369,6 +396,18 @@ class NBAWNBAGamesScene(GamesScene):
         if info_text:
             w_i = get_text_3x5_width(info_text)
             draw_text_3x5(self.draw['full'], max(22, min(32 - w_i // 2, 41 - w_i)), 14, info_text, info_color)
+
+        # Win Probability / Momentum Micro-Bar (cols 22..41, row 21)
+        if game.get('home_win_pct') is not None:
+            h_pct = game['home_win_pct']
+            away_px = int(round(20 * (100 - h_pct) / 100.0))
+            away_color = data_utils.get_team_color(game.get('away_abrv'), self.COLOURS['white'])
+            home_color = data_utils.get_team_color(game.get('home_abrv'), self.COLOURS['white'])
+            if away_px > 0:
+                self.draw['full'].line([(22, 21), (22 + away_px - 1, 21)], fill=away_color)
+            if away_px < 20:
+                self.draw['full'].line([(22 + away_px, 21), (41, 21)], fill=home_color)
+            self.draw['full'].point((32, 21), fill=self.COLOURS['black'])
 
         # 2. BOTTOM 10 PIXELS (rows 22..31, cols 0..63): ENLARGED SCORES & TIMEOUTS
         away_score_str = str(game.get('away_score', 0))
