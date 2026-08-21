@@ -438,7 +438,7 @@ class NFLGamesScene(GamesScene):
     def fade_score_change(self, game, clock_seconds=None, rotation_mode=0):
         """ Fades score from red to white after a score change and shows dynamic alerts.
         """
-        # Determine specific alert play text (e.g. KC TOUCHDOWN!)
+        # Determine specific alert play text (compact to fit 20px center channel)
         alert_text = None
         scoring_team = game.get('scoring_team')
         score_diff = game.get('score_difference', 6)
@@ -446,17 +446,17 @@ class NFLGamesScene(GamesScene):
         if scoring_team in ['away', 'home']:
             team_abrv = game['away_abrv'] if scoring_team == 'away' else game['home_abrv']
             if score_diff >= 6:
-                alert_text = f"{team_abrv} TOUCHDOWN!"
+                alert_text = "TD!"
             elif score_diff == 3:
-                alert_text = f"{team_abrv} FIELD GOAL!"
+                alert_text = "FG!"
             elif score_diff == 2:
-                alert_text = f"{team_abrv} SAFETY!"
+                alert_text = "SAFETY"
             elif score_diff == 1:
-                alert_text = f"{team_abrv} EXTRA POINT!"
+                alert_text = "+1 XP"
             else:
-                alert_text = f"{team_abrv} SCORE!"
+                alert_text = "SCORE"
         elif scoring_team == 'both':
-            alert_text = "SCORE CHANGE!"
+            alert_text = "SCORE"
 
         sleep(0.5)
         for n in range(self.COLOURS['red'][2], self.COLOURS['white'][2]):

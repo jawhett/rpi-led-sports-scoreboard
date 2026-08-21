@@ -464,7 +464,7 @@ class NBAWNBAGamesScene(GamesScene):
     def fade_score_change(self, game, clock_seconds=None, rotation_mode=0):
         """ Fades score from red to white after a score change and shows dynamic alerts.
         """
-        # Determine specific alert play text (e.g. PHX 3-POINTER!)
+        # Determine specific alert play text (compact to fit 20px center channel)
         alert_text = None
         scoring_team = game.get('scoring_team')
         score_diff = game.get('score_difference', 2)
@@ -472,13 +472,13 @@ class NBAWNBAGamesScene(GamesScene):
         if scoring_team in ['away', 'home']:
             team_abrv = game['away_abrv'] if scoring_team == 'away' else game['home_abrv']
             if score_diff == 3:
-                alert_text = f"{team_abrv} 3-POINTER!"
+                alert_text = "+3 PT"
             elif score_diff == 1:
-                alert_text = f"{team_abrv} FREE THROW!"
+                alert_text = "+1 FT"
             else:
-                alert_text = f"{team_abrv} BASKET!"
+                alert_text = "+2 PT"
         elif scoring_team == 'both':
-            alert_text = "SCORE CHANGE!"
+            alert_text = "SCORE"
 
         sleep(0.5)
         for n in range(self.COLOURS['red'][2], self.COLOURS['white'][2]):

@@ -60,7 +60,7 @@ def load_logo(league, team_abrv):
 
 
 
-def build_mock_image(game, clock_seconds_override=None, rotation_mode=0):
+def build_mock_image(game, clock_seconds_override=None, rotation_mode=0, alert_text_override=None):
     img = Image.new('RGB', (64, 32), (0, 0, 0))
     draw = ImageDraw.Draw(img)
 
@@ -73,7 +73,10 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0):
     # Extra Info text (down/dist, fouls, odds, win probability) to show in middle channel
     info_text = ""
     info_color = COLOURS['white']
-    if status_code == 2:  # In Progress
+    if alert_text_override:
+        info_text = alert_text_override
+        info_color = COLOURS['yellow_bright']
+    elif status_code == 2:  # In Progress
         if league == 'NFL' and game.get('down_distance_text'):
             info_text = compact_down_distance(game['down_distance_text'])
             info_color = COLOURS['white']
@@ -629,4 +632,7 @@ if __name__ == '__main__':
     }
     build_suns_countdown_mock(test_suns_next).save('test_layout_suns_countdown.png')
 
+    # Test score change alerts
+    img_nba_alert = build_mock_image(test_live_nba, rotation_mode=0, alert_text_override="+3 PT")
+    img_nba_alert.save("test_layout_nba_alert_3pt.png")
     print("Mockups generated!")
