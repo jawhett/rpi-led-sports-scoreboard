@@ -120,14 +120,20 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0):
         else:
             info_text = game.get('odds_str', '')
 
-    # --- ROWS 0..19: TEAM LOGOS (up to 26x20 centered) & CENTER INFO ---
-    def paste_logo(logo_img, target_x_center, target_y_center=10, max_w=26, max_h=20):
+    # --- ROWS 0..19: TEAM LOGOS (aspect-ratio aware) & CENTER INFO ---
+    def paste_logo(logo_img, target_x_center, target_y_center=10):
         if not logo_img:
             return
         w, h = logo_img.size
         if w <= 0 or h <= 0:
             return
-        scale = min(float(max_w) / w, float(max_h) / h)
+        aspect = float(w) / float(h)
+        if aspect > 1.3:  # Wide logo: allow expanding up to 28px width
+            scale = min(28.0 / w, 20.0 / h)
+        elif aspect < 0.77:  # Tall logo: allow expanding up to 21px height
+            scale = min(22.0 / w, 21.0 / h)
+        else:  # Square-ish logo
+            scale = min(22.0 / w, 20.0 / h)
         new_w = max(1, int(round(w * scale)))
         new_h = max(1, int(round(h * scale)))
         resized = logo_img.resize((new_w, new_h), Image.Resampling.LANCZOS)
@@ -136,10 +142,10 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0):
         img.paste(resized, (pos_x, pos_y))
 
     if away_logo:
-        paste_logo(away_logo, target_x_center=11, target_y_center=10, max_w=26, max_h=20)
+        paste_logo(away_logo, target_x_center=11, target_y_center=10)
 
     if home_logo:
-        paste_logo(home_logo, target_x_center=53, target_y_center=10, max_w=26, max_h=20)
+        paste_logo(home_logo, target_x_center=53, target_y_center=10)
 
     # Possession Indicator (Visual Under-Glow)
     poss = game.get('possession')  # 'away' or 'home' or tricode
@@ -188,7 +194,7 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0):
                 draw.line([(22 + away_px, 21), (41, 21)], fill=home_color)
             draw.point((32, 21), fill=COLOURS['black'])
 
-    elif status_code == 3:  # Completed - Spacious Stadium Layout with Big Scores
+    elif status_code == 3:  # Completed - Spacious Stadium Layout with Names & Scores
         # Center Channel: OT / Series context only when applicable (no FINAL or team WIN clutter)
         ot_str = game.get('ot_str', '')
         series_text = game.get('series_text', '')
@@ -203,7 +209,7 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0):
             w_c = get_text_3x5_width(center_text)
             draw_text_3x5(draw, 32 - w_c // 2, 8, center_text, COLOURS['yellow_bright'])
 
-    # --- BOTTOM ROWS (rows 20..31, cols 0..63): ENLARGED PROMINENT SCORES ---
+    # --- BOTTOM ROWS (rows 22..31, cols 0..63): TEAM NAMES, SCORES & SMALL DASH ---
     if status_code in (2, 3):  # Live or Final
         away_score_val = game.get('away_score', 0)
         home_score_val = game.get('home_score', 0)
@@ -217,25 +223,44 @@ def build_mock_image(game, clock_seconds_override=None, rotation_mode=0):
             elif home_score_val < away_score_val:
                 color_home = (120, 120, 120)
 
-            # Prominent enlarged scores using med_bold (6x12 font)
-            score_font = FONTS['med_bold']
-            away_score_str = str(away_score_val)
-            home_score_str = str(home_score_val)
+            # Team Names + Scores beneath each logo
+            score_font = FONTS['sm_bold']
+            is_3digit = (away_score_val >= 100 or home_score_val >= 100)
 
-            bbox_away = draw.textbbox((0, 0), away_score_str, font=score_font)
-            w_away = bbox_away[2] - bbox_away[0]
-            bbox_home = draw.textbbox((0, 0), home_score_str, font=score_font)
-            w_home = bbox_home[2] - bbox_home[0]
-            bbox_dash = draw.textbbox((0, 0), "-", font=score_font)
-            w_dash = bbox_dash[2] - bbox_dash[0]
+            if is_3digit:
+                w_a_code = get_text_3x5_width(game['away_abrv'])
+                bbox_a_score = draw.textbbox((0, 0), str(away_score_val), font=score_font)
+                w_a_score = bbox_a_score[2] - bbox_a_score[0]
+                
+                # Away: Code in 3x5, Score in sm_bold
+                draw_text_3x5(draw, 0, 24, game['away_abrv'], color_away)
+                draw.text((w_a_code + 2, 22), str(away_score_val), font=score_font, fill=color_away)
 
-            x_dash = 32 - w_dash // 2
-            x_away = x_dash - 4 - w_away
-            x_home = x_dash + w_dash + 4
+                w_h_code = get_text_3x5_width(game['home_abrv'])
+                bbox_h_score = draw.textbbox((0, 0), str(home_score_val), font=score_font)
+                w_h_score = bbox_h_score[2] - bbox_h_score[0]
 
-            draw.text((x_away, 20), away_score_str, font=score_font, fill=color_away)
-            draw.text((x_dash, 20), "-", font=score_font, fill=COLOURS['grey_light'])
-            draw.text((x_home, 20), home_score_str, font=score_font, fill=color_home)
+                # Home: Score in sm_bold, Code in 3x5
+                x_h_start = 64 - (w_h_score + 2 + w_h_code)
+                draw.text((x_h_start, 22), str(home_score_val), font=score_font, fill=color_home)
+                draw_text_3x5(draw, x_h_start + w_h_score + 2, 24, game['home_abrv'], color_home)
+            else:
+                away_str = f"{game['away_abrv']} {away_score_val}"
+                home_str = f"{home_score_val} {game['home_abrv']}"
+
+                bbox_away = draw.textbbox((0, 0), away_str, font=score_font)
+                w_away = bbox_away[2] - bbox_away[0]
+                x_away = max(0, min(28 - w_away, 11 - w_away // 2))
+
+                bbox_home = draw.textbbox((0, 0), home_str, font=score_font)
+                w_home = bbox_home[2] - bbox_home[0]
+                x_home = max(36, min(64 - w_home, 53 - w_home // 2))
+
+                draw.text((x_away, 22), away_str, font=score_font, fill=color_away)
+                draw.text((x_home, 22), home_str, font=score_font, fill=color_home)
+
+            # Small, crisp 2px dash at x=31..32, y=26
+            draw.line([(31, 26), (32, 26)], fill=COLOURS['grey_light'])
         else:
             score_font = FONTS['sm_bold']
             away_score_str = str(away_score_val)

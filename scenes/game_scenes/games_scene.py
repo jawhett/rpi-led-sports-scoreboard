@@ -220,13 +220,19 @@ class GamesScene(Scene):
         image_utils.clear_image(self.images['full'], self.draw['full'])
 
         # Helper to scale and center logos with aspect-ratio awareness
-        def paste_logo(logo_img, target_x_center, target_y_center=10, max_w=26, max_h=20):
+        def paste_logo(logo_img, target_x_center, target_y_center=10):
             if not logo_img:
                 return
             w, h = logo_img.size
             if w <= 0 or h <= 0:
                 return
-            scale = min(float(max_w) / w, float(max_h) / h)
+            aspect = float(w) / float(h)
+            if aspect > 1.3:  # Wide logo: allow expanding up to 28px width
+                scale = min(28.0 / w, 20.0 / h)
+            elif aspect < 0.77:  # Tall logo: allow expanding up to 21px height
+                scale = min(22.0 / w, 21.0 / h)
+            else:  # Square-ish logo
+                scale = min(22.0 / w, 20.0 / h)
             new_w = max(1, int(round(w * scale)))
             new_h = max(1, int(round(h * scale)))
             resized = logo_img.resize((new_w, new_h), Image.Resampling.LANCZOS)
@@ -234,13 +240,13 @@ class GamesScene(Scene):
             pos_y = max(0, min(32 - new_h, target_y_center - new_h // 2))
             self.images['full'].paste(resized, (pos_x, pos_y))
 
-        # 1. ROWS 0..19: TEAM LOGOS (up to 26x20 centered)
+        # 1. ROWS 0..19: TEAM LOGOS (aspect-ratio aware)
         away_logo_path = f'assets/images/{self.LEAGUE}/teams/{game["away_abrv"]}.png' if game["away_abrv"] not in getattr(self, 'alt_logos', {}) else f'assets/images/{self.LEAGUE}/teams_alt/{game["away_abrv"]}_{self.alt_logos[game["away_abrv"]]}.png'
         if os.path.exists(away_logo_path):
             try:
                 away_logo = Image.open(away_logo_path)
                 away_logo = image_utils.crop_image(away_logo)
-                paste_logo(away_logo, target_x_center=11, target_y_center=10, max_w=26, max_h=20)
+                paste_logo(away_logo, target_x_center=11, target_y_center=10)
             except Exception:
                 pass
 
@@ -249,7 +255,7 @@ class GamesScene(Scene):
             try:
                 home_logo = Image.open(home_logo_path)
                 home_logo = image_utils.crop_image(home_logo)
-                paste_logo(home_logo, target_x_center=53, target_y_center=10, max_w=26, max_h=20)
+                paste_logo(home_logo, target_x_center=53, target_y_center=10)
             except Exception:
                 pass
 
@@ -271,7 +277,7 @@ class GamesScene(Scene):
             w_c = get_text_3x5_width(center_text)
             draw_text_3x5(self.draw['full'], 32 - w_c // 2, 8, center_text, self.COLOURS['yellow_bright'])
 
-        # 2. BOTTOM ROWS (rows 20..31, cols 0..63): ENLARGED PROMINENT FINAL SCORES
+        # 2. BOTTOM ROWS (rows 22..31, cols 0..63): TEAM NAMES, SCORES & SMALL DASH
         color_away = data_utils.TEAM_COLORS.get(game.get('away_abrv'), self.COLOURS['white'])
         color_home = data_utils.TEAM_COLORS.get(game.get('home_abrv'), self.COLOURS['white'])
 
@@ -280,24 +286,37 @@ class GamesScene(Scene):
         elif home_score < away_score:
             color_home = (120, 120, 120)
 
-        score_font = self.FONTS['med_bold']
-        away_score_str = str(away_score)
-        home_score_str = str(home_score)
+        score_font = self.FONTS['sm_bold']
+        is_3digit = (away_score >= 100 or home_score >= 100)
 
-        bbox_away = self.draw['full'].textbbox((0, 0), away_score_str, font=score_font)
-        w_away = bbox_away[2] - bbox_away[0]
-        bbox_home = self.draw['full'].textbbox((0, 0), home_score_str, font=score_font)
-        w_home = bbox_home[2] - bbox_home[0]
-        bbox_dash = self.draw['full'].textbbox((0, 0), "-", font=score_font)
-        w_dash = bbox_dash[2] - bbox_dash[0]
+        if is_3digit:
+            w_a_code = get_text_3x5_width(game.get('away_abrv', ''))
+            draw_text_3x5(self.draw['full'], 0, 24, game.get('away_abrv', ''), color_away)
+            self.draw['full'].text((w_a_code + 2, 22), str(away_score), font=score_font, fill=color_away)
 
-        x_dash = 32 - w_dash // 2
-        x_away = x_dash - 4 - w_away
-        x_home = x_dash + w_dash + 4
+            w_h_code = get_text_3x5_width(game.get('home_abrv', ''))
+            bbox_h_score = self.draw['full'].textbbox((0, 0), str(home_score), font=score_font)
+            w_h_score = bbox_h_score[2] - bbox_h_score[0]
+            x_h_start = 64 - (w_h_score + 2 + w_h_code)
+            self.draw['full'].text((x_h_start, 22), str(home_score), font=score_font, fill=color_home)
+            draw_text_3x5(self.draw['full'], x_h_start + w_h_score + 2, 24, game.get('home_abrv', ''), color_home)
+        else:
+            away_str = f"{game.get('away_abrv', '')} {away_score}"
+            home_str = f"{home_score} {game.get('home_abrv', '')}"
 
-        self.draw['full'].text((x_away, 20), away_score_str, font=score_font, fill=color_away)
-        self.draw['full'].text((x_dash, 20), "-", font=score_font, fill=self.COLOURS['grey_light'])
-        self.draw['full'].text((x_home, 20), home_score_str, font=score_font, fill=color_home)
+            bbox_away = self.draw['full'].textbbox((0, 0), away_str, font=score_font)
+            w_away = bbox_away[2] - bbox_away[0]
+            x_away = max(0, min(28 - w_away, 11 - w_away // 2))
+
+            bbox_home = self.draw['full'].textbbox((0, 0), home_str, font=score_font)
+            w_home = bbox_home[2] - bbox_home[0]
+            x_home = max(36, min(64 - w_home, 53 - w_home // 2))
+
+            self.draw['full'].text((x_away, 22), away_str, font=score_font, fill=color_away)
+            self.draw['full'].text((x_home, 22), home_str, font=score_font, fill=color_home)
+
+        # Small, crisp 2px dash at x=31..32, y=26
+        self.draw['full'].line([(31, 26), (32, 26)], fill=self.COLOURS['grey_light'])
 
         if hasattr(self, 'draw_complete_extras'):
             self.draw_complete_extras(game, rotation_mode)
