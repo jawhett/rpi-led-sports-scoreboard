@@ -123,7 +123,15 @@ def get_games(date, league_abrv):
                         # Odds
                         odds_str = None
                         if comp.get('odds'):
-                            odds_str = comp['odds'][0].get('details')
+                            odds_item = comp['odds'][0]
+                            spread_text = odds_item.get('details', '')
+                            ou = odds_item.get('overUnder')
+                            if ou and spread_text:
+                                odds_str = f"{spread_text} O/U {ou}"
+                            elif spread_text:
+                                odds_str = spread_text
+                            elif ou:
+                                odds_str = f"O/U {ou}"
 
                         # Situation / Possession
                         sit = comp.get('situation', {})

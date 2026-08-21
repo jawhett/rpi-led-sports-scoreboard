@@ -157,17 +157,38 @@ class MLBGamesScene(GamesScene):
 
 
 
-    def get_not_started_banner_text(self, game, rotation_mode):
+    def get_not_started_banner_text(self, game, rotation_mode=0):
         from utils.format_utils import parse_odds
+        from utils.font_utils import get_text_3x5_width
 
-        parsed_odds = parse_odds(game.get('odds_str'))
-        if rotation_mode == 1 and parsed_odds:
+        odds_raw = game.get('odds_str')
+        parsed_odds = parse_odds(odds_raw) if odds_raw else None
+        if parsed_odds:
             spread = parsed_odds.get('spread', '')
             fav = parsed_odds.get('fav_team', '')
-            if spread and fav:
-                return f"{fav} {spread}", self.COLOURS['yellow_bright']
-            elif parsed_odds.get('ou'):
-                return f"U{parsed_odds['ou']}", self.COLOURS['yellow_bright']
+            ou = parsed_odds.get('ou', '')
+
+            if rotation_mode == 1 and ou:
+                ou_clean = ou.replace(".0", "")
+                return f"U{ou_clean}", self.COLOURS['yellow_bright']
+            elif fav and spread:
+                fav_short = fav[:2] if len(fav) > 2 else fav
+                cand = f"{fav_short} {spread}"
+                if get_text_3x5_width(cand) <= 19:
+                    return cand, self.COLOURS['yellow_bright']
+                cand2 = f"{fav_short}{spread}"
+                if get_text_3x5_width(cand2) <= 19:
+                    return cand2, self.COLOURS['yellow_bright']
+                return spread, self.COLOURS['yellow_bright']
+            elif spread:
+                return spread, self.COLOURS['yellow_bright']
+            elif ou:
+                return f"U{ou}", self.COLOURS['yellow_bright']
+
+        broadcaster = game.get('broadcaster') or game.get('tv')
+        if broadcaster:
+            return broadcaster.upper()[:6], self.COLOURS['cyan']
+
         return "", self.COLOURS['white']
 
     def get_final_period_str(self, game):
